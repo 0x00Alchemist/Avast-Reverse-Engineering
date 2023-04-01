@@ -75,7 +75,7 @@ __int64 __fastcall Avast::Util::CallSpecificPPV(LPVOID *pPV, IID *rIID)
   return result;
 }
 
-bool __fastcall sub_1800058C0(CLSID *rCLSID)
+bool __fastcall Avast::Util::CheckCLSID(CLSID *rCLSID)
 {
   return (*&rCLSID->Data1 == 0x11D1F2A1C08AFD90i64 && *rCLSID->Data4 == 0x80381FC9A0005584ui64)
       || (*&rCLSID->Data1 == 0x11CFF6A89BA05972i64 && *rCLSID->Data4 == 0x398F0AC9A00042A4i64)
