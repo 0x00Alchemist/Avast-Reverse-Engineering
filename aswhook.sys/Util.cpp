@@ -1,3 +1,8 @@
+bool Avast::Util::IsEarlierThanWin10()
+{
+  return UKUSER_SHARED_DATA.NtMajorVersion < 0xA;
+}
+
 __int64 Avast::Util::ComputeValuesFromArray()
 {
   __int64 numElements;
