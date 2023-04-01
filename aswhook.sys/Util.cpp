@@ -3,6 +3,86 @@ bool Avast::Util::IsEarlierThanWin10()
   return UKUSER_SHARED_DATA.NtMajorVersion < 0xA;
 }
 
+unsigned int __fastcall Avast::Util::StoreProcessTimes(__int64 process_handle)
+{
+  unsigned int result; // eax
+  __int64 data_address; // rsi
+  void *handle; // rcx
+  __int64 counter; // rbx
+  int error_code; // edi
+  unsigned int shifted_result; // edi
+  __int64 times_information; // r9
+  unsigned __int8 index; // dl
+  __int64 v10; // r8
+  __int128 ProcessInformation[2]; // [rsp+30h] [rbp-38h] BYREF
+  __int64 v12; // [rsp+78h] [rbp+10h] BYREF
+
+  result = Avast::Memory::GetDataByIndex(&dword_180010B70, &v12);
+  if ( (result & 0x80000000) != 0 )
+    return result;
+  data_address = v12;
+  if ( !v12 || !*(v12 + 3) )
+    return result;
+  handle = *process_handle;
+  counter = 0i64;
+  memset(ProcessInformation, 0, sizeof(ProcessInformation));
+  if ( qword_180010ED8 )
+    result = qword_180010ED8(handle);
+  else
+    result = ZwQueryInformationProcess(handle, ProcessTimes, ProcessInformation, 0x20u, 0i64);
+  if ( (result & 0x80000000) == 0 )
+  {
+    times_information = *&ProcessInformation[0];
+LABEL_20:
+    index = 0;
+    while ( 1 )
+    {
+      result = index;
+      v10 = data_address + 24i64 * index;
+      if ( (*(v10 + 24) & 1) == 0 )
+        break;
+      if ( ++index >= 8u )
+        return result;
+    }
+    *(v10 + 12) = *(process_handle + 16);
+    result = *(process_handle + 20);
+    *(v10 + 8) = result;
+    *(v10 + 24) = 1;
+    *(v10 + 16) = times_information;
+    --*(data_address + 3);
+    return result;
+  }
+  if ( result == 0x80000005 )
+  {
+    error_code = 0xE0010044;
+  }
+  else
+  {
+    shifted_result = result >> 30;
+    if ( !(result >> 30) )
+      shifted_result = 1;
+    result = RtlNtStatusToDosError(result);
+    while ( dword_18000D190[2 * counter] != result )
+    {
+      if ( ++counter >= 0x21 )
+      {
+        result = result;
+        error_code = result | (shifted_result << 30) | 0x70000;
+        goto LABEL_17;
+      }
+    }
+    result = LOWORD(dword_18000D190[2 * counter + 1]);
+    error_code = result | (shifted_result << 30) | 0x20010000;
+  }
+LABEL_17:
+  if ( error_code >= 0 )
+  {
+    times_information = v12;
+    goto LABEL_20;
+  }
+  return result;
+}
+
 __int64 __fastcall Avast::Util::GetErrorCode(unsigned int systemErrorStatus)
 {
   unsigned int shiftResult;

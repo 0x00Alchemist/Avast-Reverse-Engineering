@@ -34,6 +34,332 @@ __int64 __fastcall Avast::Hook::NtContinue(__int64 ThreadContext, unsigned __int
   return oNtContinue(ThreadContext, RaiseAlert);
 }
 
+__int64 __fastcall Avast::Hook::NtOpenThread(HANDLE *threadHandle, int desiredAccess)
+{
+  int status;
+  void **fileHandlePtr;
+  struct _NT_TIB *selfTibPtr;
+  int stackLimitVal;
+  void *v8;
+  int v9;
+  struct _IO_STATUS_BLOCK IoStatusBlock;
+  int InputBuffer[6];
+  _BYTE *v13;
+  char ThreadInformation[16];
+  PVOID v15;
+  int v16;
+
+  status = oNtOpenThread(threadHandle, desiredAccess);
+  if ( status >= 0
+    && (desiredAccess & 0x32) != 0
+    && Avast::Memory::GetDataByIndex(&dword_180010B70, &IoStatusBlock) >= 0
+    && IoStatusBlock.Pointer
+    && *IoStatusBlock.Pointer != 1 )
+  {
+    *IoStatusBlock.Pointer = 1;
+    if ( ZwQueryInformationThread(*threadHandle, ThreadBasicInformation, ThreadInformation, 0x30u, 0i64) >= 0
+      && KeGetPcr()->NtTib.Self[1].StackBase != v15 )
+    {
+      fileHandlePtr = FileHandle;
+      selfTibPtr = KeGetPcr()->NtTib.Self;
+      InputBuffer[0] = selfTibPtr[1].StackBase;
+      InputBuffer[4] = desiredAccess;
+      stackLimitVal = selfTibPtr[1].StackLimit;
+      InputBuffer[2] = v15;
+      InputBuffer[1] = stackLimitVal;
+      InputBuffer[3] = v16;
+      if ( Avast::CreateFile(FileHandle) >= 0 )
+      {
+        v8 = *fileHandlePtr;
+        IoStatusBlock = 0i64;
+        v9 = ZwDeviceIoControlFile(v8, 0i64, 0i64, 0i64, &IoStatusBlock, 0x53606160u, InputBuffer, 0x14u, 0i64, 0);
+        if ( v9 < 0 )
+          RtlNtStatusToDosError(v9);
+      }
+    }
+    if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v13) >= 0 && v13 && *v13 )
+      *v13 = 0;
+  }
+  return status;
+}
+
+__int64 __fastcall Avast::Hook::NtSuspendThread(HANDLE ThreadHandle)
+{
+  unsigned int status;
+  void **v3; 
+  struct _NT_TIB *Self;
+  int StackLimit; 
+  void *v6;
+  int v7;
+  int InputBuffer[4];
+  struct _IO_STATUS_BLOCK IoStatusBlock;
+  char ThreadInformation[16]; 
+  PVOID v12;
+  int v13; 
+  _BYTE *v14; 
+  _BYTE *v15;
+
+  status = oNtSuspendThread(ThreadHandle);
+  if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v14) >= 0 && v14 && *v14 != 1 )
+  {
+    *v14 = 1;
+    if ( ZwQueryInformationThread(ThreadHandle, ThreadBasicInformation, ThreadInformation, 0x30u, 0i64) >= 0
+      && KeGetPcr()->NtTib.Self[1].StackBase != v12 )
+    {
+      v3 = FileHandle;
+      Self = KeGetPcr()->NtTib.Self;
+      InputBuffer[0] = Self[1].StackBase;
+      StackLimit = Self[1].StackLimit;
+      InputBuffer[2] = v12;
+      InputBuffer[1] = StackLimit;
+      InputBuffer[3] = v13;
+      if ( Avast::CreateFile(FileHandle) >= 0 )
+      {
+        v6 = *v3;
+        IoStatusBlock = 0i64;
+        v7 = ZwDeviceIoControlFile(v6, 0i64, 0i64, 0i64, &IoStatusBlock, 0x53606188u, InputBuffer, 0x10u, 0i64, 0);
+        if ( v7 < 0 )
+          RtlNtStatusToDosError(v7);
+      }
+    }
+    if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v15) >= 0 && v15 && *v15 )
+      *v15 = 0;
+  }
+  return status;
+}
+
+__int64 __fastcall Avast::Hook::NtCreateUserProcess(
+        __int64 *processHandle,
+        HANDLE *threadHandle,
+        __int64 parentProcessHandle,
+        __int64 inheritFromParentFlag,
+        __int64 creationFlags,
+        __int64 argumentList,
+        int argumentsLength)
+{
+  __int64 result; // rax
+  unsigned int resultCode; // ebx
+  __int64 tempProcessHandle; // rcx
+  __int64 threadInformationArray[2]; // [rsp+60h] [rbp-58h] BYREF
+  int firstValueInThreadInfoArray; // [rsp+70h] [rbp-48h]
+  int secondValueInThreadInfoArray; // [rsp+74h] [rbp-44h]
+  char ThreadInformation[16]; // [rsp+78h] [rbp-40h] BYREF
+  int v16; // [rsp+88h] [rbp-30h]
+  int v17; // [rsp+90h] [rbp-28h]
+
+  result = oNtCreateUserProcess(
+             processHandle,
+             threadHandle,
+             parentProcessHandle,
+             inheritFromParentFlag,
+             creationFlags,
+             argumentList,
+             argumentsLength);
+  resultCode = result;
+  if ( result >= 0 )
+  {
+    if ( ZwQueryInformationThread(*threadHandle, ThreadBasicInformation, ThreadInformation, 0x30u, 0i64) >= 0 )
+    {
+      tempProcessHandle = *processHandle;
+      threadInformationArray[1] = *threadHandle;
+      firstValueInThreadInfoArray = v16;
+      threadInformationArray[0] = tempProcessHandle;
+      secondValueInThreadInfoArray = v17;
+      Avast::Util::StoreProcessTimes(threadInformationArray);
+    }
+    return resultCode;
+  }
+  return result;
+}
+
+__int64 __fastcall Avast::Hook::NtNotifyChangeKey(
+        __int64 keyHandle,
+        __int64 eventHandle,
+        __int64 apcRoutine,
+        __int64 apcRoutineContext,
+        __int64 ioStatusBlock,
+        int notifyFilter,
+        char watchSubtree,
+        __int64 regChangesDataBuffer,
+        int regChangesDataBufferLength,
+        char asynchronous)
+{
+  __int64 v14; // rcx
+  int v16; // [rsp+50h] [rbp-18h] BYREF
+  __int64 v17[2]; // [rsp+58h] [rbp-10h] BYREF
+
+  if ( Avast::Memory::GetDataByIndex(&dword_180010B70, v17) < 0 || !v17[0] || *v17[0] == 1 )
+    return oNtNotifyChangeKey(
+             keyHandle,
+             eventHandle,
+             apcRoutine,
+             apcRoutineContext,
+             ioStatusBlock,
+             notifyFilter,
+             watchSubtree,
+             regChangesDataBuffer,
+             regChangesDataBufferLength,
+             asynchronous);
+  *v17[0] = 1;
+  Avast::Client::ReadData(v14, keyHandle, &v16);
+  if ( Avast::Memory::GetDataByIndex(&dword_180010B70, v17) >= 0 && v17[0] )
+  {
+    if ( *v17[0] )
+      *v17[0] = 0;
+  }
+  if ( v16 == 0xC0000022 )
+    return 0xC0000022i64;
+  else
+    return oNtNotifyChangeKey(
+             keyHandle,
+             eventHandle,
+             apcRoutine,
+             apcRoutineContext,
+             ioStatusBlock,
+             notifyFilter,
+             watchSubtree,
+             regChangesDataBuffer,
+             regChangesDataBufferLength,
+             asynchronous);
+}
+
+__int64 __fastcall Avast::Hook::NtTerminateThread(HANDLE ThreadHandle, int ExitStatus)
+{
+  void **v4; // rsi
+  struct _NT_TIB *Self; // rax
+  int StackLimit; // ecx
+  void *v7; // rcx
+  int v8; // eax
+  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+50h] [rbp-68h] BYREF
+  int InputBuffer[6]; // [rsp+60h] [rbp-58h] BYREF
+  char ThreadInformation[16]; // [rsp+78h] [rbp-40h] BYREF
+  PVOID v13; // [rsp+88h] [rbp-30h]
+  int v14; // [rsp+90h] [rbp-28h]
+  _BYTE *v15; // [rsp+D0h] [rbp+18h] BYREF
+  _BYTE *v16; // [rsp+D8h] [rbp+20h] BYREF
+
+  if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v15) >= 0 && v15 && *v15 != 1 )
+  {
+    *v15 = 1;
+    if ( ZwQueryInformationThread(ThreadHandle, ThreadBasicInformation, ThreadInformation, 0x30u, 0i64) >= 0
+      && KeGetPcr()->NtTib.Self[1].StackBase != v13 )
+    {
+      v4 = FileHandle;
+      Self = KeGetPcr()->NtTib.Self;
+      InputBuffer[0] = Self[1].StackBase;
+      InputBuffer[4] = ExitStatus;
+      StackLimit = Self[1].StackLimit;
+      InputBuffer[2] = v13;
+      InputBuffer[1] = StackLimit;
+      InputBuffer[3] = v14;
+      if ( Avast::CreateFile(FileHandle) >= 0 )
+      {
+        v7 = *v4;
+        IoStatusBlock = 0i64;
+        v8 = ZwDeviceIoControlFile(v7, 0i64, 0i64, 0i64, &IoStatusBlock, 0x5360618Cu, InputBuffer, 0x14u, 0i64, 0);
+        if ( v8 < 0 )
+          RtlNtStatusToDosError(v8);
+      }
+    }
+    if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v16) >= 0 && v16 && *v16 )
+      *v16 = 0;
+  }
+  return oNtTerminateThread(ThreadHandle, ExitStatus);
+}
+
+__int64 __fastcall Avast::Hook::NtTerminateProcess(__int64 ProcessHandle, unsigned int exitStatus)
+{
+  void **fHandle; // rsi
+  struct _NT_TIB *pcrTibSelf; // rax
+  void *devPtr; // rcx
+  int statusVal; // eax
+  struct _IO_STATUS_BLOCK iostatusBlkStructPtr; // [rsp+50h] [rbp-38h] BYREF
+  int inBufferArrayPtr[2]; // [rsp+60h] [rbp-28h] BYREF
+  __int64 v12; // [rsp+68h] [rbp-20h]
+  __int64 process_handle2; // [rsp+70h] [rbp-18h]
+  unsigned int exit_status2; // [rsp+78h] [rbp-10h]
+  _BYTE *dataOneBytePtrName; // [rsp+90h] [rbp+8h] BYREF
+  _BYTE *dataTwoBytePtrName; // [rsp+A0h] [rbp+18h] BYREF
+
+  if ( (ProcessHandle - 1) <= 0xFFFFFFFFFFFFFFFDui64
+    && Avast::Memory::GetDataByIndex(&dword_180010B70, &dataOneBytePtrName) >= 0
+    && dataOneBytePtrName
+    && *dataOneBytePtrName != 1 )
+  {
+    *dataOneBytePtrName = 1;
+    fHandle = FileHandle;
+    pcrTibSelf = KeGetPcr()->NtTib.Self;
+    inBufferArrayPtr[0] = pcrTibSelf[1].StackBase;
+    v12 = 0i64;
+    exit_status2 = exitStatus;
+    inBufferArrayPtr[1] = pcrTibSelf[1].StackLimit;
+    process_handle2 = ProcessHandle;
+    if ( Avast::CreateFile(FileHandle) >= 0 )
+    {
+      devPtr = *fHandle;
+      iostatusBlkStructPtr = 0i64;
+      statusVal = ZwDeviceIoControlFile(
+                    devPtr,
+                    0i64,
+                    0i64,
+                    0i64,
+                    &iostatusBlkStructPtr,
+                    0x5360616Cu,
+                    inBufferArrayPtr,
+                    0x20u,
+                    0i64,
+                    0);
+      if ( statusVal < 0 )
+        RtlNtStatusToDosError(statusVal);
+    }
+    if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &dataTwoBytePtrName) >= 0
+      && dataTwoBytePtrName
+      && *dataTwoBytePtrName )
+    {
+      *dataTwoBytePtrName = 0;
+    }
+  }
+  return oNtTerminateProcess(ProcessHandle, exitStatus);
+}
+
+__int64 __fastcall Avast::Hook::NtSuspendProcess(unsigned int ProcessHandle)
+{
+  unsigned int status; // ebx
+  void **v3; // rsi
+  struct _NT_TIB *Self; // rax
+  void *v5; // rcx
+  int v6; // eax
+  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+50h] [rbp-38h] BYREF
+  int InputBuffer[2]; // [rsp+60h] [rbp-28h] BYREF
+  __int64 v10; // [rsp+68h] [rbp-20h]
+  __int64 v11; // [rsp+70h] [rbp-18h]
+  _BYTE *v12; // [rsp+98h] [rbp+10h] BYREF
+  _BYTE *v13; // [rsp+A0h] [rbp+18h] BYREF
+
+  status = oNtSuspendProcess();
+  if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v12) >= 0 && v12 && *v12 != 1 )
+  {
+    *v12 = 1;
+    v3 = FileHandle;
+    Self = KeGetPcr()->NtTib.Self;
+    InputBuffer[0] = Self[1].StackBase;
+    v10 = 0i64;
+    InputBuffer[1] = Self[1].StackLimit;
+    v11 = ProcessHandle;
+    if ( Avast::CreateFile(FileHandle) >= 0 )
+    {
+      v5 = *v3;
+      IoStatusBlock = 0i64;
+      v6 = ZwDeviceIoControlFile(v5, 0i64, 0i64, 0i64, &IoStatusBlock, 0x53606170u, InputBuffer, 0x18u, 0i64, 0);
+      if ( v6 < 0 )
+        RtlNtStatusToDosError(v6);
+    }
+    if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v13) >= 0 && v13 && *v13 )
+      *v13 = 0;
+  }
+  return status;
+}
+
 __int64 __fastcall Avast::Hook::NtSetInformationProcess(
         char *procHandle,
         unsigned int processInfoClass,
@@ -239,7 +565,7 @@ LABEL_21:
                 }
                 RtlReleaseSRWLockExclusive(&SRWLock);
               }
-              sub_180007250(v15, 0x80000006, DesiredAccess, v7, v6);
+              Avast::Client::SendIoControlRequest(v15, 0x80000006, DesiredAccess, v7, v6);
               goto LABEL_24;
             }
           }
@@ -474,4 +800,73 @@ LABEL_12:
   if ( !byte_18001117C && *&rCLSID->Data1 == 0x11CEA2AB148BD52Ai64 && *rCLSID->Data4 == 0x3055300AA001FB1i64 )
     sub_180005B20(pPV, rIID);
   return v8;
+}
+
+__int64 __fastcall Avast::Hook::RtlDecompressBuffer(
+        __int64 CompressionFormat,
+        _WORD *UncompressedBuffer,
+        __int64 UncompressedBufferSize,
+        __int64 CompressedBuffer,
+        int CompressedBufferSize,
+        unsigned int *FinalUncompressedSize)
+{
+  int v7; // ebp
+  __int64 v8; // rbx
+  char v9; // cl
+  PHANDLE v10; // rsi
+  void *v11; // rcx
+  int v12; // eax
+  _BYTE *v14; // [rsp+50h] [rbp-38h] BYREF
+  __int64 InputBuffer[2]; // [rsp+58h] [rbp-30h] BYREF
+  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+68h] [rbp-20h] BYREF
+
+  v7 = oRtlDecompressBuffer(CompressionFormat, UncompressedBuffer);
+  if ( v7 >= 0 )
+  {
+    v8 = *FinalUncompressedSize;
+    if ( v8 >= 2
+      && *UncompressedBuffer == 0x5A4D
+      && v8 < dword_180010050
+      && Avast::Memory::GetDataByIndex(&dword_180010B70, &v14) >= 0
+      && v14
+      && *v14 != 1 )
+    {
+      *v14 = 1;
+      if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v14) >= 0 )
+      {
+        if ( v14 )
+        {
+          v9 = v14[1];
+          if ( v9 )
+          {
+            v10 = FileHandle;
+            v14[1] = v9 - 1;
+            InputBuffer[1] = UncompressedBuffer;
+            InputBuffer[0] = v8;
+            if ( Avast::CreateFile(v10) >= 0 )
+            {
+              v11 = *v10;
+              IoStatusBlock = 0i64;
+              v12 = ZwDeviceIoControlFile(
+                      v11,
+                      0i64,
+                      0i64,
+                      0i64,
+                      &IoStatusBlock,
+                      0x53606148u,
+                      InputBuffer,
+                      0x10u,
+                      0i64,
+                      0);
+              if ( v12 < 0 )
+                RtlNtStatusToDosError(v12);
+            }
+          }
+        }
+      }
+      if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v14) >= 0 && v14 && *v14 )
+        *v14 = 0;
+    }
+  }
+  return v7;
 }
