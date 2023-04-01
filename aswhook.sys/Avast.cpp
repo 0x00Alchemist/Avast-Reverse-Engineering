@@ -1,53 +1,53 @@
 __int64 __fastcall Avast::CreateFile(_WORD *handlePtr)
 {
-  char *filenamePointer; // rax
-  bool isNull; // zf
-  __int64 counter1; // rdx
-  __int16 wordValue; // cx
-  __int64 errCodeHolder1; // rdi
-  __int64 counter2; // rax
-  __int64 iterationCounter3; // rbx
-  ACCESS_MASK accessMode; // r14d
-  ACCESS_MASK acessMode2; // edx
-  char *charPtr; // rcx
-  __int64 int64Var; // rdx
-  __int16 int16Var; // ax
-  __int16 int16Var2; // di
-  int ntStatusResult; // eax
-  ULONG dosErrorResult; // eax
-  __int16 v18; // [rsp+60h] [rbp-49h] BYREF
-  __int16 v19; // [rsp+62h] [rbp-47h]
-  __int128 *v20; // [rsp+68h] [rbp-41h] BYREF
-  __int128 v21; // [rsp+70h] [rbp-39h] BYREF
-  __int64 v22; // [rsp+80h] [rbp-29h]
-  struct _OBJECT_ATTRIBUTES objectAttributes; // [rsp+B0h] [rbp+7h] BYREF
-  struct _IO_STATUS_BLOCK ioStatusBlock; // [rsp+E0h] [rbp+37h] BYREF
+  char *filenamePointer;
+  bool isNull;
+  __int64 counter1;
+  __int16 wordValue;
+  __int64 errCodeHolder1;
+  __int64 counter2;
+  __int64 iterationCounter3;
+  ACCESS_MASK accessMode;
+  ACCESS_MASK acessMode2;
+  char *charPtr;
+  __int64 int64Var;
+  __int16 int16Var;
+  __int16 int16Var2;
+  int ntStatusResult;
+  ULONG dosErrorResult;
+  __int16 v18;
+  __int16 v19;
+  __int128 *v20;
+  __int128 v21;
+  __int64 v22;
+  struct _OBJECT_ATTRIBUTES objectAttributes; 
+  struct _IO_STATUS_BLOCK ioStatusBlock;
 
-  if ( *handlePtr != -1i64 )
-    return 0i64;
+  if ( *handlePtr != -1 )
+    return 0;
   WORD4(v21) = 0;
   filenamePointer = &v20 + 6;
-  *&v21 = 0x5C003F003F005Ci64;
+  *&v21 = 0x5C003F003F005C;
   do
   {
     isNull = *(filenamePointer + 1) == 0;
     filenamePointer += 2;
   }
   while ( !isNull );
-  counter1 = 0i64;
+  counter1 = 0;
   do
   {
     wordValue = handlePtr[counter1 + 5];
     *&filenamePointer[2 * counter1++] = wordValue;
   }
   while ( wordValue );
-  errCodeHolder1 = -1i64;
+  errCodeHolder1 = -1;
   v20 = &v21;
-  counter2 = -1i64;
+  counter2 = -1;
   do
     ++counter2;
   while ( *(&v21 + counter2) );
-  iterationCounter3 = 0i64;
+  iterationCounter3 = 0;
   objectAttributes.Length = 48;
   isNull = *(handlePtr + 8) == 0;
   accessMode = 0x80100000;
@@ -56,22 +56,22 @@ __int64 __fastcall Avast::CreateFile(_WORD *handlePtr)
   v18 = 2 * counter2;
   if ( !isNull )
     acessMode2 = 0xC0100000;
-  objectAttributes.RootDirectory = 0i64;
+  objectAttributes.RootDirectory = 0;
   objectAttributes.Attributes = 64;
   objectAttributes.ObjectName = &v18;
-  *&objectAttributes.SecurityDescriptor = 0i64;
-  if ( ZwCreateFile(handlePtr, acessMode2, &objectAttributes, &ioStatusBlock, 0i64, 0x80u, 3u, 1u, 0x20u, 0i64, 0) >= 0 )
-    return 0i64;
+  *&objectAttributes.SecurityDescriptor = 0;
+  if ( ZwCreateFile(handlePtr, acessMode2, &objectAttributes, &ioStatusBlock, 0, 0x80u, 3u, 1u, 0x20u, 0, 0) >= 0 )
+    return 0;
   charPtr = &v20 + 6;
   v21 = xmmword_180008710;
-  v22 = 0x5C006C0061i64;
+  v22 = 0x5C006C0061;
   do
   {
     isNull = *(charPtr + 1) == 0;
     charPtr += 2;
   }
   while ( !isNull );
-  int64Var = 0i64;
+  int64Var = 0;
   do
   {
     int16Var = handlePtr[int64Var + 5];
@@ -92,15 +92,15 @@ __int64 __fastcall Avast::CreateFile(_WORD *handlePtr)
                      accessMode,
                      &objectAttributes,
                      &ioStatusBlock,
-                     0i64,
+                     0,
                      0x80u,
                      3u,
                      1u,
                      0x20u,
-                     0i64,
+                     0,
                      0);
   if ( ntStatusResult >= 0 )
-    return 0i64;
+    return 0;
   dosErrorResult = RtlNtStatusToDosError(ntStatusResult);
   while ( dword_180008190[2 * iterationCounter3] != dosErrorResult )
   {
@@ -116,7 +116,7 @@ __int64 Avast::ProcessDataAndAddHandler()
   __int64 numChunksToProcess;
 
   ptrDataStart = &unk_18000B018;
-  numChunksToProcess = 10i64;
+  numChunksToProcess = 10;
   do
   {
     Avast::ProcessArray(ptrDataStart);
@@ -166,13 +166,99 @@ __int64 __fastcall Avast::AddHandler(__int64 (*executableHandler)(void))
   int handlerIndex;
 
   if ( !executableHandler )
-    return 0xFFFFFFFFi64;
+    return 0xFFFFFFFF;
   handlerIndex = index;
   if ( index >= 32 )
-    return 0xFFFFFFFFi64;
+    return 0xFFFFFFFF;
   handlers[index] = executableHandler;
   index = handlerIndex + 1;
-  return 0i64;
+  return 0;
+}
+
+__int64 __fastcall Avast::ProcessIoControl(
+        __int64 FileHandle,
+        __int64 ControlCode,
+        __int64 InputArgument1,
+        const void *InputArgument2,
+        unsigned __int64 OutputBufferSize,
+        int *OutputBufferData)
+{
+  PHANDLE v6; 
+  unsigned int v7; 
+  __int64 result; 
+  int v9; 
+  ULONG v10; 
+  __int64 v11;
+  ULONG_PTR Information; 
+  int *v13;
+  int v14;
+  struct _IO_STATUS_BLOCK IoStatusBlock;
+  __int64 InputBuffer[4];
+  unsigned int v17;
+  int v18;
+  __int64 v19;
+  ULONG_PTR v20;
+
+  HIDWORD(v20) = HIDWORD(FileHandle);
+  v6 = ::FileHandle;
+  v7 = OutputBufferSize;
+  if ( OutputBufferSize > 8 )
+    v7 = 8;
+  LODWORD(v20) = v7;
+  InputBuffer[0] = ControlCode;
+  InputBuffer[1] = InputArgument1;
+  InputBuffer[2] = InputArgument2;
+  InputBuffer[3] = OutputBufferSize;
+  v17 = v7;
+  v18 = 0;
+  if ( v7 )
+    memcpy(&v19, InputArgument2, v7);
+  result = Avast::CreateFile(v6);
+  if ( result >= 0 )
+  {
+    IoStatusBlock = 0i64;
+    v9 = ZwDeviceIoControlFile(
+           *v6,
+           0i64,
+           0i64,
+           0i64,
+           &IoStatusBlock,
+           0x53606128u,
+           InputBuffer,
+           v7 + 40,
+           &OutputBufferSize,
+           4u);
+    if ( v9 >= 0 )
+    {
+      Information = IoStatusBlock.Information;
+      result = 0i64;
+      goto LABEL_15;
+    }
+    v10 = RtlNtStatusToDosError(v9);
+    v11 = 0i64;
+    while ( dword_18000D190[2 * v11] != v10 )
+    {
+      if ( ++v11 >= 0x21 )
+      {
+        result = v10 | 0xC0070000;
+        goto LABEL_12;
+      }
+    }
+    result = LOWORD(dword_18000D190[2 * v11 + 1]) | 0xE0010000;
+LABEL_12:
+    if ( result >= 0 )
+    {
+      Information = v20;
+LABEL_15:
+      v13 = OutputBufferData;
+      *OutputBufferData = 0;
+      v14 = *v13;
+      if ( Information >= 4 )
+        v14 = OutputBufferSize;
+      *v13 = v14;
+    }
+  }
+  return result;
 }
 
 NTSTATUS __stdcall DriverEntry(PDRIVER_OBJECT driverObject, PUNICODE_STRING registryPath)
