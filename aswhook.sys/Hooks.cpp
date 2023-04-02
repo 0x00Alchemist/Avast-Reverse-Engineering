@@ -870,3 +870,114 @@ __int64 __fastcall Avast::Hook::RtlDecompressBuffer(
   }
   return v7;
 }
+
+__int64 __fastcall Avast::Hook::CreateServiceA(
+        __int64 hSCManager,
+        LPCSTR *lpServiceName,
+        __int64 a3,
+        unsigned int dwDesiredAccess)
+{
+  if ( lpServiceName )
+    Avast::Util::CreateUnicodeString(0xAu, lpServiceName, dwDesiredAccess);
+  return oCreateServiceA(hSCManager, lpServiceName, a3, dwDesiredAccess);
+}
+
+__int64 __fastcall Avast::Hook::CreateServiceW(
+        __int64 hSCManager,
+        LPCWSTR lpServiceName,
+        LPCWSTR lpDisplayName,
+        DWORD dwDesiredAccess,
+        DWORD dwServiceType,
+        DWORD dwStartType,
+        DWORD dwErrorControl,
+        LPCWSTR lpBinaryPathName,
+        LPCWSTR lpLoadOrderGroup,
+        LPDWORD lpdwTagId,
+        LPCWSTR lpDependencies,
+        LPCWSTR lpServiceStartName,
+        LPCWSTR lpPassword)
+{
+  __int64 i; 
+  __int128 ServiceName; 
+  LPCWSTR v20; 
+  __int64 v21; 
+
+  if ( lpServiceName )
+  {
+    i = -1i64;
+    do
+      ++i;
+    while ( lpServiceName[i] );
+    v20 = lpServiceName;
+    v21 = i;
+    *&ServiceName = lpServiceName;
+    *(&ServiceName + 1) = i;
+    Avast::Util::SendUnicodeStr(0xAu, &ServiceName, dwDesiredAccess);
+  }
+  return oCreateServiceW(
+           hSCManager,
+           lpServiceName,
+           lpDisplayName,
+           dwDesiredAccess,
+           dwServiceType,
+           dwStartType,
+           dwErrorControl,
+           lpBinaryPathName,
+           lpLoadOrderGroup,
+           lpdwTagId,
+           lpDependencies,
+           lpServiceStartName,
+           lpPassword);
+}
+
+__int64 Avast::Hook::LdrLoadDll()
+{
+  unsigned int Res;
+
+  Res = oLdrLoadDll();
+  Avast::Hook::LdrLoadDllInternal();
+  return Res;
+}
+
+__int64 __fastcall Avast::Hook::LogonUserW(LPCWSTR lpszUsername, LPCWSTR lpszPassword)
+{
+  __int64 result;
+
+  result = oLogonUserW(lpszUsername, lpszPassword);
+  if ( !result )
+  {
+    Avast::Util::QueryInformationProcess();
+    return 0i64;
+  }
+  return result;
+}
+
+__int64 __fastcall Avast::Hook::OpenServiceA(__int64 hSCManager, const char *lpServiceName, int dwDesiredAccess)
+{
+  if ( lpServiceName )
+    Avast::Util::CreateUnicodeString(0x8000000A, lpServiceName, dwDesiredAccess);
+  return qword_180011150(hSCManager, lpServiceName, dwDesiredAccess);
+}
+
+__int64 __fastcall Avast::Hook::OpenServiceW(__int64 hSCManager, __int64 lpServiceName, int dwDesiredAccess)
+{
+  __int64 i;
+  __int128 ServiceName; 
+  __int64 v9;
+  __int64 v10; 
+
+  if ( lpServiceName )
+  {
+    i = -1i64;
+    do
+      ++i;
+    while ( *(lpServiceName + 2 * i) );
+    v9 = lpServiceName;
+    v10 = i;
+    *&ServiceName = lpServiceName;
+    *(&ServiceName + 1) = i;
+    Avast::Util::SendUnicodeStr(0x8000000A, &ServiceName, dwDesiredAccess);
+  }
+  return oOpenServiceW(hSCManager, lpServiceName, dwDesiredAccess);
+}
+

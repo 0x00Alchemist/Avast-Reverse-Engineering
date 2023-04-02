@@ -168,3 +168,124 @@ bool __fastcall Avast::Util::CheckCLSID(CLSID *rCLSID)
       || (*&rCLSID->Data1 == 0x11D0D68D73A4C9C1i64 && *rCLSID->Data4 == 0xD9C80DC9A000BF98ui64)
       || (*&rCLSID->Data1 == 0x11CF5A9191493441i64 && *rCLSID->Data4 == 0x3B266000AA000087i64);
 }
+
+_BYTE *Avast::Util::QueryInformationProcess()
+{
+  _BYTE *result; 
+  struct _NT_TIB *Self; 
+  int StackBase; 
+  signed int InformationProcess; 
+  _BYTE *v4; 
+  void **v5;
+  void *Handle; 
+  NTSTATUS Status; 
+  int InputBuffer[2]; 
+  _BYTE *v9; 
+  struct _IO_STATUS_BLOCK IoStatusBlock;
+  __int128 ProcessInformation[2]; 
+  _BYTE *DataByIndex; 
+  _BYTE *ByIndex; 
+
+  result = Avast::Memory::GetDataByIndex(&dword_180010B70, &DataByIndex);
+  if ( result < 0 )
+    return result;
+  result = DataByIndex;
+  if ( !DataByIndex || *DataByIndex == 1 )
+    return result;
+  *DataByIndex = 1;
+
+  // Add to specific global 0xFFFFFFFF and see if it more than zero, than, get info about process (also check initial value of global)
+  if ( dword_180010054 > 0 && _InterlockedExchangeAdd(&dword_180010054, 0xFFFFFFFF) == 1 )
+  {
+    Self = KeGetPcr()->NtTib.Self;
+    memset(ProcessInformation, 0, sizeof(ProcessInformation));
+    StackBase = Self[1].StackBase;
+    if ( oNtQueryInformationProcess )
+      InformationProcess = (oNtQueryInformationProcess)(-1i64, 4i64, ProcessInformation, 0x20i64, 0i64);
+    else
+      InformationProcess = ZwQueryInformationProcess(
+                             0xFFFFFFFFFFFFFFFFi64,
+                             ProcessTimes,
+                             ProcessInformation,
+                             0x20u,
+                             0i64);
+    if ( InformationProcess >= 0 )
+    {
+      v4 = *&ProcessInformation[0];
+      goto LABEL_13;
+    }
+    if ( Avast::Util::GetErrorCode(InformationProcess) >= 0 )
+    {
+      v4 = DataByIndex;
+LABEL_13:
+      v9 = v4;
+      v5 = FileHandle;
+      InputBuffer[1] = 0;
+      InputBuffer[0] = StackBase;
+      if ( Avast::CreateFile(FileHandle) >= 0 )
+      {
+        Handle = *v5;
+        IoStatusBlock = 0i64;
+        Status = ZwDeviceIoControlFile(
+                   Handle,
+                   0i64,
+                   0i64,
+                   0i64,
+                   &IoStatusBlock,
+                   0x53606164u,
+                   InputBuffer,
+                   0x10u,
+                   0i64,
+                   0);
+        if ( Status < 0 )
+          RtlNtStatusToDosError(Status);
+      }
+    }
+  }
+  result = Avast::Memory::GetDataByIndex(&dword_180010B70, &ByIndex);
+  if ( result >= 0 )
+  {
+    result = ByIndex;
+    if ( ByIndex )
+    {
+      if ( *ByIndex )
+        *ByIndex = 0;
+    }
+  }
+  return result;
+}
+
+BYTE *__fastcall Avast::Util::SendUnicodeStr(unsigned int StrIdx, LPCWSTR lpString, int Flags)
+{
+  _BYTE *result; // rax
+  __int128 v7; // xmm0
+  __int128 lpStr; // [rsp+20h] [rbp-18h] BYREF
+  _BYTE *DataByIndex; // [rsp+58h] [rbp+20h] BYREF
+
+  result = Avast::Memory::GetDataByIndex(&dword_180010B70, &DataByIndex);
+  if ( result >= 0 )
+  {
+    result = DataByIndex;
+    if ( DataByIndex )
+    {
+      if ( *DataByIndex != 1 )
+      {
+        v7 = *lpString;
+        *DataByIndex = 1;
+        lpStr = v7;
+        sub_180008F30(StrIdx, &lpStr, Flags);
+        result = Avast::Memory::GetDataByIndex(&dword_180010B70, &DataByIndex);
+        if ( result >= 0 )
+        {
+          result = DataByIndex;
+          if ( DataByIndex )
+          {
+            if ( *DataByIndex )
+              *DataByIndex = 0;
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
