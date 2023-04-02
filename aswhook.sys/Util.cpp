@@ -5,17 +5,17 @@ bool Avast::Util::IsEarlierThanWin10()
 
 unsigned int __fastcall Avast::Util::StoreProcessTimes(__int64 process_handle)
 {
-  unsigned int result; // eax
-  __int64 data_address; // rsi
-  void *handle; // rcx
-  __int64 counter; // rbx
-  int error_code; // edi
-  unsigned int shifted_result; // edi
-  __int64 times_information; // r9
-  unsigned __int8 index; // dl
-  __int64 v10; // r8
-  __int128 ProcessInformation[2]; // [rsp+30h] [rbp-38h] BYREF
-  __int64 v12; // [rsp+78h] [rbp+10h] BYREF
+  unsigned int result; 
+  __int64 data_address; 
+  void *handle; 
+  __int64 counter; 
+  int error_code; 
+  unsigned int shifted_result; 
+  __int64 times_information; 
+  unsigned __int8 index; 
+  __int64 v10;
+  __int128 ProcessInformation[2]; 
+  __int64 v12; 
 
   result = Avast::Memory::GetDataByIndex(&dword_180010B70, &v12);
   if ( (result & 0x80000000) != 0 )
@@ -257,10 +257,10 @@ LABEL_13:
 
 BYTE *__fastcall Avast::Util::SendUnicodeStr(unsigned int StrIdx, LPCWSTR lpString, int Flags)
 {
-  _BYTE *result; // rax
-  __int128 v7; // xmm0
-  __int128 lpStr; // [rsp+20h] [rbp-18h] BYREF
-  _BYTE *DataByIndex; // [rsp+58h] [rbp+20h] BYREF
+  _BYTE *result; 
+  __int128 v7; 
+  __int128 lpStr; 
+  _BYTE *DataByIndex; 
 
   result = Avast::Memory::GetDataByIndex(&dword_180010B70, &DataByIndex);
   if ( result >= 0 )

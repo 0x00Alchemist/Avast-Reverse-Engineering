@@ -137,15 +137,15 @@ __int64 __fastcall Avast::Hook::NtCreateUserProcess(
         __int64 argumentList,
         int argumentsLength)
 {
-  __int64 result; // rax
-  unsigned int resultCode; // ebx
-  __int64 tempProcessHandle; // rcx
-  __int64 threadInformationArray[2]; // [rsp+60h] [rbp-58h] BYREF
-  int firstValueInThreadInfoArray; // [rsp+70h] [rbp-48h]
-  int secondValueInThreadInfoArray; // [rsp+74h] [rbp-44h]
-  char ThreadInformation[16]; // [rsp+78h] [rbp-40h] BYREF
-  int v16; // [rsp+88h] [rbp-30h]
-  int v17; // [rsp+90h] [rbp-28h]
+  __int64 result; 
+  unsigned int resultCode;
+  __int64 tempProcessHandle; 
+  __int64 threadInformationArray[2];
+  int firstValueInThreadInfoArray; 
+  int secondValueInThreadInfoArray; 
+  char ThreadInformation[16];
+  int v16;
+  int v17;
 
   result = oNtCreateUserProcess(
              processHandle,
@@ -184,9 +184,9 @@ __int64 __fastcall Avast::Hook::NtNotifyChangeKey(
         int regChangesDataBufferLength,
         char asynchronous)
 {
-  __int64 v14; // rcx
-  int v16; // [rsp+50h] [rbp-18h] BYREF
-  __int64 v17[2]; // [rsp+58h] [rbp-10h] BYREF
+  __int64 v14;
+  int v16;
+  __int64 v17[2]; 
 
   if ( Avast::Memory::GetDataByIndex(&dword_180010B70, v17) < 0 || !v17[0] || *v17[0] == 1 )
     return oNtNotifyChangeKey(
@@ -225,18 +225,18 @@ __int64 __fastcall Avast::Hook::NtNotifyChangeKey(
 
 __int64 __fastcall Avast::Hook::NtTerminateThread(HANDLE ThreadHandle, int ExitStatus)
 {
-  void **v4; // rsi
-  struct _NT_TIB *Self; // rax
-  int StackLimit; // ecx
-  void *v7; // rcx
-  int v8; // eax
-  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+50h] [rbp-68h] BYREF
-  int InputBuffer[6]; // [rsp+60h] [rbp-58h] BYREF
-  char ThreadInformation[16]; // [rsp+78h] [rbp-40h] BYREF
-  PVOID v13; // [rsp+88h] [rbp-30h]
-  int v14; // [rsp+90h] [rbp-28h]
-  _BYTE *v15; // [rsp+D0h] [rbp+18h] BYREF
-  _BYTE *v16; // [rsp+D8h] [rbp+20h] BYREF
+  void **v4; 
+  struct _NT_TIB *Self;
+  int StackLimit;
+  void *v7;
+  int v8;
+  struct _IO_STATUS_BLOCK IoStatusBlock;
+  int InputBuffer[6]; 
+  char ThreadInformation[16]; 
+  PVOID v13; 
+  int v14; 
+  _BYTE *v15; 
+  _BYTE *v16; 
 
   if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v15) >= 0 && v15 && *v15 != 1 )
   {
@@ -269,17 +269,17 @@ __int64 __fastcall Avast::Hook::NtTerminateThread(HANDLE ThreadHandle, int ExitS
 
 __int64 __fastcall Avast::Hook::NtTerminateProcess(__int64 ProcessHandle, unsigned int exitStatus)
 {
-  void **fHandle; // rsi
-  struct _NT_TIB *pcrTibSelf; // rax
-  void *devPtr; // rcx
-  int statusVal; // eax
-  struct _IO_STATUS_BLOCK iostatusBlkStructPtr; // [rsp+50h] [rbp-38h] BYREF
-  int inBufferArrayPtr[2]; // [rsp+60h] [rbp-28h] BYREF
-  __int64 v12; // [rsp+68h] [rbp-20h]
-  __int64 process_handle2; // [rsp+70h] [rbp-18h]
-  unsigned int exit_status2; // [rsp+78h] [rbp-10h]
-  _BYTE *dataOneBytePtrName; // [rsp+90h] [rbp+8h] BYREF
-  _BYTE *dataTwoBytePtrName; // [rsp+A0h] [rbp+18h] BYREF
+  void **fHandle; 
+  struct _NT_TIB *pcrTibSelf; 
+  void *devPtr; 
+  int statusVal; 
+  struct _IO_STATUS_BLOCK iostatusBlkStructPtr; 
+  int inBufferArrayPtr[2]; 
+  __int64 v12; 
+  __int64 process_handle2;
+  unsigned int exit_status2;
+  _BYTE *dataOneBytePtrName; 
+  _BYTE *dataTwoBytePtrName; 
 
   if ( (ProcessHandle - 1) <= 0xFFFFFFFFFFFFFFFDui64
     && Avast::Memory::GetDataByIndex(&dword_180010B70, &dataOneBytePtrName) >= 0
@@ -324,17 +324,17 @@ __int64 __fastcall Avast::Hook::NtTerminateProcess(__int64 ProcessHandle, unsign
 
 __int64 __fastcall Avast::Hook::NtSuspendProcess(unsigned int ProcessHandle)
 {
-  unsigned int status; // ebx
-  void **v3; // rsi
-  struct _NT_TIB *Self; // rax
-  void *v5; // rcx
-  int v6; // eax
-  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+50h] [rbp-38h] BYREF
-  int InputBuffer[2]; // [rsp+60h] [rbp-28h] BYREF
-  __int64 v10; // [rsp+68h] [rbp-20h]
-  __int64 v11; // [rsp+70h] [rbp-18h]
-  _BYTE *v12; // [rsp+98h] [rbp+10h] BYREF
-  _BYTE *v13; // [rsp+A0h] [rbp+18h] BYREF
+  unsigned int status; 
+  void **v3; 
+  struct _NT_TIB *Self;
+  void *v5;
+  int v6; 
+  struct _IO_STATUS_BLOCK IoStatusBlock; 
+  int InputBuffer[2]; 
+  __int64 v10; 
+  __int64 v11; 
+  _BYTE *v12; 
+  _BYTE *v13; 
 
   status = oNtSuspendProcess();
   if ( Avast::Memory::GetDataByIndex(&dword_180010B70, &v12) >= 0 && v12 && *v12 != 1 )
@@ -810,15 +810,15 @@ __int64 __fastcall Avast::Hook::RtlDecompressBuffer(
         int CompressedBufferSize,
         unsigned int *FinalUncompressedSize)
 {
-  int v7; // ebp
-  __int64 v8; // rbx
-  char v9; // cl
-  PHANDLE v10; // rsi
-  void *v11; // rcx
-  int v12; // eax
-  _BYTE *v14; // [rsp+50h] [rbp-38h] BYREF
-  __int64 InputBuffer[2]; // [rsp+58h] [rbp-30h] BYREF
-  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+68h] [rbp-20h] BYREF
+  int v7; 
+  __int64 v8; 
+  char v9; 
+  PHANDLE v10; 
+  void *v11; 
+  int v12; 
+  _BYTE *v14; 
+  __int64 InputBuffer[2]; 
+  struct _IO_STATUS_BLOCK IoStatusBlock;
 
   v7 = oRtlDecompressBuffer(CompressionFormat, UncompressedBuffer);
   if ( v7 >= 0 )
@@ -956,7 +956,7 @@ __int64 __fastcall Avast::Hook::OpenServiceA(__int64 hSCManager, const char *lpS
 {
   if ( lpServiceName )
     Avast::Util::CreateUnicodeString(0x8000000A, lpServiceName, dwDesiredAccess);
-  return qword_180011150(hSCManager, lpServiceName, dwDesiredAccess);
+  return oOpenServiceA(hSCManager, lpServiceName, dwDesiredAccess);
 }
 
 __int64 __fastcall Avast::Hook::OpenServiceW(__int64 hSCManager, __int64 lpServiceName, int dwDesiredAccess)

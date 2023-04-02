@@ -79,16 +79,16 @@ LABEL_14:
 
 __int64 __fastcall Avast::Client::ReadData(__int64 outputBuffer, __int64 inputBuffer, _DWORD *resultBufferPointer)
 {
-  void **fileHandlePointer; // rdi
-  __int64 result; // rax
-  void *v6; // rcx
-  int v7; // eax
-  ULONG v8; // edx
-  __int64 v9; // rax
-  bool v10; // cf
-  struct _IO_STATUS_BLOCK IoStatusBlock; // [rsp+50h] [rbp-18h] BYREF
-  __int64 OutputBuffer; // [rsp+70h] [rbp+8h] BYREF
-  __int64 InputBuffer; // [rsp+78h] [rbp+10h] BYREF
+  void **fileHandlePointer; 
+  __int64 result; 
+  void *v6; 
+  int v7; 
+  ULONG v8; 
+  __int64 v9; 
+  bool v10; 
+  struct _IO_STATUS_BLOCK IoStatusBlock; 
+  __int64 OutputBuffer; 
+  __int64 InputBuffer; 
 
   OutputBuffer = outputBuffer;
   fileHandlePointer = FileHandle;
