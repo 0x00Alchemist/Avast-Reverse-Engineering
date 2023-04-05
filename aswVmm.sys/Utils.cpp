@@ -110,3 +110,118 @@ LABEL_10:
     __debugbreak();
   return retVal;
 }
+
+bool __fastcall Util::CheckDdiAvailability(ULONG Version)
+{
+  __int64 (__fastcall *SystemRoutineAddress)(_QWORD); 
+  struct _UNICODE_STRING SystemRoutineName; 
+  ULONG MajorVersion; 
+  ULONG MinorVersion; 
+
+  MajorVersion = 0;
+  MinorVersion = 0;
+  SystemRoutineName = 0i64;
+  RtlInitUnicodeString(&SystemRoutineName, L"RtlIsNtDdiVersionAvailable");
+  SystemRoutineAddress = MmGetSystemRoutineAddress(&SystemRoutineName);
+  if ( SystemRoutineAddress )
+    return SystemRoutineAddress(Version);
+  if ( Version )
+    return 0;
+  PsGetVersion(&MajorVersion, &MinorVersion, 0i64, 0i64);
+  return (MinorVersion + (MajorVersion << 8)) << 16 >= Version;
+}
+
+NTSTATUS __fastcall Util::CreateKlibCallback(int Ctx)
+{
+  struct _UNICODE_STRING DestinationString; 
+  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
+
+  RtlInitUnicodeString(&DestinationString, aswKlibCallback[Ctx]);
+  ObjectAttributes.RootDirectory = 0i64;
+  ObjectAttributes.ObjectName = &DestinationString;
+  ObjectAttributes.Length = 48;
+  ObjectAttributes.Attributes = 0xC0;
+  *&ObjectAttributes.SecurityDescriptor = 0i64;
+  return ExCreateCallback(&Object, &ObjectAttributes, 0, 0);
+}
+
+__int64 Util::GetStandardCpuInfo()
+{
+  if ( !sub_14002804E() )
+    return 0i64;
+  _RAX = 0i64;
+  __asm { cpuid }
+  if ( qword_140031012 == __PAIR64__(_RDX, _RBX) && dword_14003101A == _RCX )
+    return 1i64;
+  if ( dword_14003101E == _RBX && dword_140031022 == _RDX && dword_140031026 == _RCX )
+    return 2i64;
+  if ( dword_14003102A == _RBX && dword_14003102E == _RDX && dword_140031032 == _RCX )
+    return 3i64;
+  else
+    return 0i64;
+}
+
+void __fastcall Util::RegisterKlibCallback(PVOID CallbackContext, PVOID Argument1, PVOID Argument2)
+{
+  Util::CreateKlibCallback(CallbackContext);
+  if ( qword_140045700 )
+  {
+    qword_140045700();
+    qword_140045700 = 0i64;
+  }
+}
+
+void Util::UnregisterCallback()
+{
+  if ( CallbackRegistration )
+  {
+    ExUnregisterCallback(CallbackRegistration);
+    CallbackRegistration = 0i64;
+  }
+  if ( Object )
+  {
+    ObfDereferenceObject(Object);
+    Object = 0i64;
+  }
+  if ( byte_140045690 )
+    byte_140045690 = 0;
+}
+
+__int64 Utill::GetCpuInfo()
+{
+  int v0; 
+  __int64 _RAX; 
+  __int64 _RCX; 
+  __int64 _RAX; 
+  __int64 _RAX; 
+  __int64 _RAX; 
+  __int64 _RCX; 
+
+  if ( sub_14002804E() )
+  {
+    v0 = Util::GetStandardCpuInfo();
+    if ( v0 )
+    {
+      if ( v0 == 2 )
+      {
+        _RAX = 0x80000000i64;
+        __asm { cpuid }
+        if ( _RAX >= 0x80000001 )
+        {
+          _RAX = 0x80000001i64;
+          __asm { cpuid }
+          if ( (_RCX & 4) != 0 )
+            return 1i64;
+        }
+      }
+      else
+      {
+        _RAX = 1i64;
+        __asm { cpuid }
+        if ( (_RCX & 0x20) != 0 )
+          return 1i64;
+      }
+    }
+  }
+  return 0i64;
+}
