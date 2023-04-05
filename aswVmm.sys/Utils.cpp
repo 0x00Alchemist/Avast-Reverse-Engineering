@@ -187,7 +187,7 @@ void Util::UnregisterCallback()
     byte_140045690 = 0;
 }
 
-__int64 Utill::GetCpuInfo()
+__int64 Utill::GetExtendedCpuInfo()
 {
   int v0; 
   __int64 _RAX; 
