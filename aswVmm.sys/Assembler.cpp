@@ -1,3 +1,34 @@
+unsigned __int64 __fastcall Hypervisor::AsmInvept(int _ECX, __int64 _RDX)
+{
+    __asm
+    {
+        invept  ecx, xmmword ptr [rdx]
+        pushfq
+        pop     rax
+        retn
+    }
+}
+
+unsigned __int64 __fastcall Hypervisor::AsmGetVpidState(int _ECX, __int64 _RDX)
+{
+    __asm
+    {
+        invvpid ecx, xmmword ptr [rdx]
+        pushfq
+        pop     rax
+        retn
+    }
+}
+
+void Hypervisor::AsmLoadCxIntoLdt(__int16 _CX)
+{
+    __asm
+    {
+        lldt    cx
+        retn
+    }
+}
+
 void Hypervisor::AsmGetGDTInfo(void* gdtInfo)
 {
     __asm 

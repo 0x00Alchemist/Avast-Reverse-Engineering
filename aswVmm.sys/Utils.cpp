@@ -1,3 +1,37 @@
+__int64 __fastcall Util::CalculateAverageCpuTime(unsigned int num_iterations, char use_first_min_only)
+{
+  unsigned int avgTimeDifference;
+  unsigned int iterationCounter;
+  unsigned __int64 startTimestamp;
+  unsigned int currentTimeDifference;
+
+  avgTimeDifference = -1;
+  if ( *HvGlobalState->gap534 )
+    return *HvGlobalState->gap534;
+  if ( num_iterations )
+  {
+    if ( !use_first_min_only )
+      startTimestamp = __rdtsc();
+    for ( iterationCounter = 0; iterationCounter < num_iterations; ++iterationCounter )
+    {
+      if ( use_first_min_only )
+        startTimestamp = __rdtsc();
+      _RAX = 1i64;
+      __asm { cpuid }
+      if ( use_first_min_only )
+      {
+        currentTimeDifference = __rdtsc() - startTimestamp;
+        if ( avgTimeDifference > currentTimeDifference )
+          avgTimeDifference = currentTimeDifference;
+      }
+    }
+    if ( !use_first_min_only )
+      avgTimeDifference = (__rdtsc() - startTimestamp) / num_iterations;
+    *HvGlobalState->gap534 = avgTimeDifference;
+  }
+  return avgTimeDifference;
+}
+
 __int64 __fastcall Util::AllocatePagedPoolWithTag(__int64 allocationSize, unsigned __int16 tagValue)
 {
   PVOID allocatedPool;
@@ -145,6 +179,23 @@ NTSTATUS __fastcall Util::CreateKlibCallback(int Ctx)
   return ExCreateCallback(&Object, &ObjectAttributes, 0, 0);
 }
 
+__int64 __fastcall Util::RetrieveCpuidInformation(__int64 firstArg, __int64 secondArg, _DWORD *resultPtr)
+{
+  __int64 raxReg;
+  __int64 result;
+  __int64 rdxReg;
+  __int64 rcxReg;
+  __int64 rbxReg;
+
+  raxReg = firstArg;
+  __asm { cpuid }
+  *resultPtr = result;
+  resultPtr[1] = rbxReg;
+  resultPtr[2] = rcxReg;
+  resultPtr[3] = rdxReg;
+  return result;
+}
+
 __int64 Util::GetStandardCpuInfo()
 {
   if ( !sub_14002804E() )
@@ -224,4 +275,15 @@ __int64 Utill::GetExtendedCpuInfo()
     }
   }
   return 0i64;
+}
+
+__int64 __fastcall Util::RdtscpWrapper(_DWORD *value, _DWORD *counter)
+{
+  __int64 result;
+
+  __asm { rdtscp }
+  *value = result;
+  value[1] = counter;
+  *counter = value;
+  return result;
 }

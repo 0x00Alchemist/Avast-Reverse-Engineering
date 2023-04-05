@@ -85,6 +85,44 @@ LABEL_15:
   return 0xC00000EF;
 }
 
+__int64 __fastcall Hypervisor::CheckProductType(_QWORD *pointerToQword, char charParameter)
+{
+  const char *stringPointer;
+  __int64 result;
+
+  if ( charParameter )
+  {
+    stringPointer = "Microsoft Hv";
+  }
+  else if ( HvProductType )
+  {
+    switch ( HvProductType )
+    {
+      case 1:
+        stringPointer = "AVGVMMonitor";
+        break;
+      case 2:
+        stringPointer = "NLLVMMonitor";
+        break;
+      case 3:
+        stringPointer = "AVRVMMonitor";
+        break;
+      default:
+        stringPointer = "INVVMMonitor";
+        break;
+    }
+  }
+  else
+  {
+    stringPointer = "Avast!aswVmm";
+  }
+  pointerToQword[3] = *stringPointer;
+  pointerToQword[1] = *(stringPointer + 1);
+  result = *(stringPointer + 2);
+  pointerToQword[2] = result;
+  return result;
+}
+
 __int64 Hypervisor::KlibCallbackWorker()
 {
   unsigned int v0; 
