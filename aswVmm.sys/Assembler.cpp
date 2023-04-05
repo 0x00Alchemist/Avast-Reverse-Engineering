@@ -38,7 +38,7 @@ __int16 Hypervisor::AsmGetCodeSegment()
 {
     __asm
     {
-        mov ax, AsmGetCodeSegment
+        mov ax, cs
         retn
     }
 }
@@ -72,6 +72,9 @@ __int16 Hypervisor::AsmGetGlobalSegment()
 
 __int16 Hypervisor::AsmGetLdtSegment()
 {
-    sldt ax
-    retn
+    __asm
+    {
+        sldt ax
+        retn
+    }
 }
