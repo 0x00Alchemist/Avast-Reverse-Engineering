@@ -202,11 +202,11 @@ __int64 Util::GetStandardCpuInfo()
     return 0i64;
   _RAX = 0i64;
   __asm { cpuid }
-  if ( qword_140031012 == __PAIR64__(_RDX, _RBX) && dword_14003101A == _RCX )
+  if ( GenuineI == __PAIR64__(_RDX, _RBX) && ntel == _RCX )
     return 1i64;
-  if ( dword_14003101E == _RBX && dword_140031022 == _RDX && dword_140031026 == _RCX )
+  if ( Auth == _RBX && enti == _RDX && cAMD == _RCX )
     return 2i64;
-  if ( dword_14003102A == _RBX && dword_14003102E == _RDX && dword_140031032 == _RCX )
+  if ( Cent == _RBX && aurH == _RDX && auls == _RCX )
     return 3i64;
   else
     return 0i64;
@@ -286,4 +286,244 @@ __int64 __fastcall Util::RdtscpWrapper(_DWORD *value, _DWORD *counter)
   value[1] = counter;
   *counter = value;
   return result;
+}
+
+PVOID Util::FindSpecificDeviceFuncs()
+{
+  PVOID Addr; 
+  struct _UNICODE_STRING DestinationString; 
+
+  DestinationString = 0i64;
+  RtlInitUnicodeString(&DestinationString, L"IoCreateDeviceSecure");
+  IoCreateDeviceSecure = MmGetSystemRoutineAddress(&DestinationString);
+  if ( !IoCreateDeviceSecure )
+    IoCreateDeviceSecure = sub_140047124;
+  RtlInitUnicodeString(&DestinationString, L"IoValidateDeviceIoControlAccess");
+  Addr = MmGetSystemRoutineAddress(&DestinationString);
+  IoValidateDeviceIoControlAccess = Addr;
+  IsSpecificDeviceFuncsFound = 1;
+  return Addr;
+}
+
+__int64 __fastcall Util::IoCreateDeviceSecureWrapper(
+        PDRIVER_OBJECT DriverObject,
+        unsigned int DeviceExtensionSize,
+        _UNICODE_STRING *aswVmmDevice,
+        unsigned int DeviceType,
+        int DeviceCharacteristics,
+        char Exclusive,
+        _UNICODE_STRING *DeviceSDDLString,
+        _GUID *DeviceClassGuid,
+        PDEVICE_OBJECT DeviceObject)
+{
+  if ( !IsSpecificDeviceFuncsFound )
+    Util::FindSpecificDeviceFuncs();
+  return IoCreateDeviceSecure(
+           DriverObject,
+           DeviceExtensionSize,
+           aswVmmDevice,
+           DeviceType,
+           DeviceCharacteristics,
+           Exclusive,
+           DeviceSDDLString,
+           DeviceClassGuid,
+           DeviceObject);
+}
+
+__int64 Util::FindSpecificHvFuncs()
+{
+  struct _UNICODE_STRING HalConvertDeviceIdtToIrql; 
+  struct _UNICODE_STRING SeLocateProcessImageName; 
+  struct _UNICODE_STRING KeRegisterNmiCallback; 
+  struct _UNICODE_STRING KeDeregisterNmiCallback; 
+  struct _UNICODE_STRING KeQueryUnbiasedInterruptTime; 
+  struct _UNICODE_STRING ZwTraceControl; 
+  struct _UNICODE_STRING NtTraceControl; 
+  struct _UNICODE_STRING NtWaitForSingleObject; 
+
+  *&HalConvertDeviceIdtToIrql.Length = 0x340032;
+  HalConvertDeviceIdtToIrql.Buffer = L"HalConvertDeviceIdtToIrql";
+  *&SeLocateProcessImageName.Length = 0x320030;
+  SeLocateProcessImageName.Buffer = L"SeLocateProcessImageName";
+  KeRegisterNmiCallback.Buffer = L"KeRegisterNmiCallback";
+  KeDeregisterNmiCallback.Buffer = L"KeDeregisterNmiCallback";
+  KeQueryUnbiasedInterruptTime.Buffer = L"KeQueryUnbiasedInterruptTime";
+  ZwTraceControl.Buffer = L"ZwTraceControl";
+  NtTraceControl.Buffer = L"NtTraceControl";
+  NtWaitForSingleObject.Buffer = L"NtWaitForSingleObject";
+  *&KeRegisterNmiCallback.Length = 0x2C002A;
+  *&KeDeregisterNmiCallback.Length = 0x30002E;
+  *&KeQueryUnbiasedInterruptTime.Length = 0x3A0038;
+  *&ZwTraceControl.Length = 0x1E001C;
+  *&NtTraceControl.Length = 0x1E001C;
+  *&NtWaitForSingleObject.Length = 0x2C002A;
+  *&HvGlobalState->gapEB8[8] = MmGetSystemRoutineAddress(&HalConvertDeviceIdtToIrql);
+  *&HvGlobalState->gapEB8[16] = MmGetSystemRoutineAddress(&SeLocateProcessImageName);
+  HvGlobalState->pfuncED0 = MmGetSystemRoutineAddress(&KeRegisterNmiCallback);
+  HvGlobalState->qwordED8 = MmGetSystemRoutineAddress(&KeDeregisterNmiCallback);
+  *HvGlobalState->gapEE0 = MmGetSystemRoutineAddress(&KeQueryUnbiasedInterruptTime);
+  *&HvGlobalState->gapEE0[8] = MmGetSystemRoutineAddress(&ZwTraceControl);
+  *&HvGlobalState->gapEE0[16] = MmGetSystemRoutineAddress(&NtTraceControl);
+  *&HvGlobalState->gapEE0[24] = MmGetSystemRoutineAddress(&NtWaitForSingleObject);
+  return 0i64;
+}
+
+__int64 __fastcall Util::MmQuery(struct _UNICODE_STRING *RegistryPath, _DWORD *hvDw134)
+{
+  NTSTATUS Status;
+  NTSTATUS v4; 
+  unsigned __int16 v5; 
+  __int16 hwKey; 
+  unsigned __int16 i;
+  __int16 j; 
+  __int64 v10; 
+  WCHAR *KeyHandle; 
+  __int128 KeyHandle_8; 
+  __int128 P_8; 
+  UNICODE_STRING String2; 
+  UNICODE_STRING String1; 
+  struct _RTL_QUERY_REGISTRY_TABLE QueryTable; 
+  __int64 v17; 
+  int v18; 
+  __int128 v19; 
+  __int128 v20; 
+  __int64 v21; 
+  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
+  struct _RTL_QUERY_REGISTRY_TABLE QueryTable_1; 
+  __int64 v24; 
+  int v25; 
+  const wchar_t *v26; 
+  __int128 *p_KeyHandle_8; 
+  int v28; 
+  __int64 v29; 
+  int v30; 
+  __int64 v31; 
+  int v32; 
+  __int128 v33; 
+  __int128 v34; 
+  __int64 v35; 
+
+  QueryTable.Name = L"ImagePath";
+  LODWORD(v10) = 0;
+  QueryTable.EntryContext = &P_8;
+  KeyHandle = 0i64;
+  v21 = 0i64;
+  QueryTable.QueryRoutine = 0i64;
+  QueryTable_1.Name = L"VerifyDriverLevel";
+  QueryTable_1.EntryContext = &v10;
+  v26 = L"VerifyDrivers";
+  p_KeyHandle_8 = &KeyHandle_8;
+  QueryTable.Flags = 0x134;
+  QueryTable.DefaultType = 0x1000000;
+  QueryTable.DefaultData = 0i64;
+  QueryTable.DefaultLength = 0;
+  v17 = 0i64;
+  v18 = 0;
+  QueryTable_1.QueryRoutine = 0i64;
+  QueryTable_1.Flags = 0x120;
+  QueryTable_1.DefaultType = 0x4000000;
+  QueryTable_1.DefaultData = 0i64;
+  QueryTable_1.DefaultLength = 0;
+  v24 = 0i64;
+  v25 = 292;
+  v28 = 0x1000000;
+  v29 = 0i64;
+  v30 = 0;
+  v31 = 0i64;
+  v32 = 0;
+  v33 = 0i64;
+  v34 = 0i64;
+  v35 = 0i64;
+  KeyHandle_8 = 0i64;
+  P_8 = 0i64;
+  v19 = 0i64;
+  v20 = 0i64;
+  if ( RegistryPath && hvDw134 )
+  {
+    ObjectAttributes.Length = 48;
+    ObjectAttributes.RootDirectory = 0i64;
+    ObjectAttributes.Attributes = 0x240;
+    ObjectAttributes.ObjectName = RegistryPath;
+    *&ObjectAttributes.SecurityDescriptor = 0i64;
+    Status = ZwOpenKey(&KeyHandle, 0x20019u, &ObjectAttributes);
+    if ( Status >= 0 )
+    {
+      v4 = RtlQueryRegistryValues(RTL_REGISTRY_HANDLE, KeyHandle, &QueryTable, 0i64, 0i64);
+      Status = v4;
+      if ( v4 >= 0
+        || v4 == 0xC0000024
+        && (QueryTable.DefaultType = 0x2000000,
+            Status = RtlQueryRegistryValues(RTL_REGISTRY_HANDLE, KeyHandle, &QueryTable, 0i64, 0i64),
+            Status >= 0) )
+      {
+        if ( !P_8 )
+        {
+LABEL_8:
+          Status = 0xC0000225;
+          goto LABEL_22;
+        }
+        v5 = P_8 >> 1;
+        if ( P_8 >> 1 )
+        {
+          do
+          {
+            if ( *(*(&P_8 + 1) + 2i64 * v5 - 2) == 92 )
+              break;
+            --v5;
+          }
+          while ( v5 );
+        }
+        String1.Length = P_8 - 2 * v5;
+        String1.MaximumLength = String1.Length;
+        String1.Buffer = (*(&P_8 + 1) + 2i64 * v5);
+        Status = RtlQueryRegistryValues(
+                   RTL_REGISTRY_CONTROL,
+                   L"Session Manager\\Memory Management",
+                   &QueryTable_1,
+                   0i64,
+                   0i64);
+        if ( Status >= 0 )
+        {
+          hwKey = KeyHandle_8;
+          if ( !KeyHandle_8 )
+            goto LABEL_8;
+          if ( **(&KeyHandle_8 + 1) != 0x2A )
+          {
+            Status = 0xC0000225;
+            i = 0;
+            if ( (KeyHandle_8 & 0xFFFE) == 0 )
+              goto LABEL_22;
+            j = 0;
+            while ( 1 )
+            {
+              String2.Length = hwKey - j;
+              String2.MaximumLength = hwKey - j;
+              String2.Buffer = (*(&KeyHandle_8 + 1) + 2i64 * i);
+              if ( RtlPrefixUnicodeString(&String1, &String2, 1u) )
+                break;
+              hwKey = KeyHandle_8;
+              ++i;
+              j += RTL_REGISTRY_CONTROL;
+              if ( i >= (KeyHandle_8 >> 1) )
+                goto LABEL_22;
+            }
+          }
+          Status = 0;
+          *hvDw134 = v10;
+        }
+      }
+    }
+  }
+  else
+  {
+    Status = 0xC000000D;
+  }
+LABEL_22:
+  if ( *(&KeyHandle_8 + 1) )
+    ExFreePoolWithTag(*(&KeyHandle_8 + 1), 0);
+  if ( *(&P_8 + 1) )
+    ExFreePoolWithTag(*(&P_8 + 1), 0);
+  if ( KeyHandle )
+    ZwClose(KeyHandle);
+  return Status;
 }

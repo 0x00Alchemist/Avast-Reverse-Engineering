@@ -208,3 +208,47 @@ LABEL_16:
     Util::UnregisterCallback();
   return Status;
 }
+
+__int64 Hypervisor::HvAllocatePhysMemory()
+{
+  NTSTATUS Status; 
+  PPHYSICAL_MEMORY_RANGE PhysicalMemoryRanges; 
+  char *Memory; 
+  LARGE_INTEGER NumberOfBytes; 
+  char *PhysMemRange; 
+  LONGLONG v5; 
+  SIZE_T FinalSize; 
+  _OWORD *Allocated; 
+
+  Status = 0;
+  PhysicalMemoryRanges = MmGetPhysicalMemoryRanges();
+  Memory = PhysicalMemoryRanges;
+  if ( PhysicalMemoryRanges )
+  {
+    NumberOfBytes = PhysicalMemoryRanges->NumberOfBytes;
+    PhysMemRange = PhysicalMemoryRanges;
+    while ( NumberOfBytes.QuadPart )
+    {
+      v5 = NumberOfBytes.QuadPart + *PhysMemRange;
+      if ( v5 > *HvGlobalState->gap478 )
+        *HvGlobalState->gap478 = v5;
+      NumberOfBytes = *(PhysMemRange + 24);
+      PhysMemRange += 16;
+    }
+    if ( *HvGlobalState->gap478 < 0x100000000i64 )
+      *HvGlobalState->gap478 = 0x100000000i64;
+    FinalSize = PhysMemRange - Memory + 16;
+    *&HvGlobalState->gap478[8] = ExAllocatePoolWithTag(NonPagedPool_0, FinalSize, 'MMVA');
+    Allocated = *&HvGlobalState->gap478[8];
+    if ( Allocated )
+      sub_140029400(Allocated, Memory, FinalSize);
+    else
+      Status = 0xC0000017;
+    ExFreePoolWithTag(Memory, 0);
+  }
+  else
+  {
+    return 0xC0000001;
+  }
+  return Status;
+}
