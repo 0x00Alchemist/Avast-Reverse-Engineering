@@ -1,3 +1,155 @@
+char *__fastcall Util::GetModuleBaseAddress(
+        const char *moduleName,
+        unsigned __int64 searchAddress,
+        _OWORD *bufferPointer)
+{
+  __int64 baseAddressResult;
+  char *result;
+  char *allocatedBuffer;
+  ULONG counterValue;
+  __int64 iterationCounter;
+  _OWORD *localBufferPointer;
+  __int64 moduleBaseOffset;
+  char *tempBufferLength;
+  __int64 v11;
+  char *v12;
+  __int64 v13;
+  _OWORD *v14;
+  char *v15;
+  __int64 v16;
+  ULONG ReturnLength[2];
+  __int64 v18;
+  char *v19;
+
+  baseAddressResult = 0i64;
+  v19 = 0i64;
+  ReturnLength[0] = 0;
+  ZwQuerySystemInformation(SystemModuleInformation, ReturnLength, 0, ReturnLength);
+  if ( !ReturnLength[0] )
+    return 0i64;
+  result = ExAllocatePoolWithTag(PagedPool, 2 * ReturnLength[0], 'yDpS');
+  allocatedBuffer = result;
+  v19 = result;
+  if ( result )
+  {
+    sub_1400296C0(result, 0, 2 * ReturnLength[0]);
+    if ( ZwQuerySystemInformation(SystemModuleInformation, allocatedBuffer, 2 * ReturnLength[0], ReturnLength) >= 0 )
+    {
+      counterValue = 0;
+      iterationCounter = 2i64;
+      localBufferPointer = bufferPointer;
+      while ( 1 )
+      {
+        ReturnLength[1] = counterValue;
+        if ( counterValue >= *allocatedBuffer )
+          break;
+        moduleBaseOffset = 0x128i64 * counterValue;
+        if ( searchAddress )
+        {
+          if ( searchAddress >= *&allocatedBuffer[moduleBaseOffset + 24] )
+          {
+            v13 = 296i64 * counterValue;
+            if ( searchAddress < *&allocatedBuffer[v13 + 24] + *&allocatedBuffer[v13 + 32] )
+            {
+              baseAddressResult = *&allocatedBuffer[v13 + 24];
+              v18 = baseAddressResult;
+              if ( bufferPointer )
+              {
+                v14 = bufferPointer;
+                v15 = &allocatedBuffer[v13 + 8];
+                v16 = 2i64;
+                do
+                {
+                  *v14 = *v15;
+                  v14[1] = *(v15 + 1);
+                  v14[2] = *(v15 + 2);
+                  v14[3] = *(v15 + 3);
+                  v14[4] = *(v15 + 4);
+                  v14[5] = *(v15 + 5);
+                  v14[6] = *(v15 + 6);
+                  v14 += 8;
+                  *(v14 - 1) = *(v15 + 7);
+                  v15 += 128;
+                  --v16;
+                }
+                while ( v16 );
+                *v14 = *v15;
+                v14[1] = *(v15 + 1);
+                *(v14 + 4) = *(v15 + 4);
+              }
+            }
+          }
+        }
+        else
+        {
+          if ( !moduleName )
+          {
+            baseAddressResult = *&allocatedBuffer[moduleBaseOffset + 24];
+            v18 = baseAddressResult;
+            if ( bufferPointer )
+            {
+              tempBufferLength = &allocatedBuffer[296 * counterValue + 8];
+              do
+              {
+                *localBufferPointer = *tempBufferLength;
+                localBufferPointer[1] = *(tempBufferLength + 1);
+                localBufferPointer[2] = *(tempBufferLength + 2);
+                localBufferPointer[3] = *(tempBufferLength + 3);
+                localBufferPointer[4] = *(tempBufferLength + 4);
+                localBufferPointer[5] = *(tempBufferLength + 5);
+                localBufferPointer[6] = *(tempBufferLength + 6);
+                localBufferPointer += 8;
+                *(localBufferPointer - 1) = *(tempBufferLength + 7);
+                tempBufferLength += 128;
+                --iterationCounter;
+              }
+              while ( iterationCounter );
+              *localBufferPointer = *tempBufferLength;
+              localBufferPointer[1] = *(tempBufferLength + 1);
+              *(localBufferPointer + 4) = *(tempBufferLength + 4);
+            }
+            break;
+          }
+          v11 = 296i64 * counterValue;
+          if ( !stricmp(&allocatedBuffer[v11 + 48 + *&allocatedBuffer[moduleBaseOffset + 46]], moduleName) )
+          {
+            if ( bufferPointer )
+            {
+              v12 = &allocatedBuffer[v11 + 8];
+              do
+              {
+                *localBufferPointer = *v12;
+                localBufferPointer[1] = *(v12 + 1);
+                localBufferPointer[2] = *(v12 + 2);
+                localBufferPointer[3] = *(v12 + 3);
+                localBufferPointer[4] = *(v12 + 4);
+                localBufferPointer[5] = *(v12 + 5);
+                localBufferPointer[6] = *(v12 + 6);
+                localBufferPointer += 8;
+                *(localBufferPointer - 1) = *(v12 + 7);
+                v12 += 128;
+                --iterationCounter;
+              }
+              while ( iterationCounter );
+              *localBufferPointer = *v12;
+              localBufferPointer[1] = *(v12 + 1);
+              *(localBufferPointer + 4) = *(v12 + 4);
+            }
+            baseAddressResult = *&allocatedBuffer[v11 + 24];
+            v18 = baseAddressResult;
+            break;
+          }
+        }
+        ++counterValue;
+      }
+    }
+    if ( allocatedBuffer )
+      ExFreePoolWithTag(allocatedBuffer, 'yDpS');
+    return baseAddressResult;
+  }
+  return result;
+}
+
 __int64 __fastcall Util::CalculateAverageCpuTime(unsigned int num_iterations, char use_first_min_only)
 {
   unsigned int avgTimeDifference;
