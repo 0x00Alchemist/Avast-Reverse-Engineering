@@ -679,3 +679,331 @@ LABEL_22:
     ZwClose(KeyHandle);
   return Status;
 }
+
+char Util::GetProcessorFamily()
+{
+  char v0;
+  unsigned __int32 ProcessorFamily; 
+  int v2; 
+  unsigned __int32 v3; 
+  int v4; 
+  int v5; 
+
+  v0 = 0;
+  ProcessorFamily = EAX(__cpuid(1, 0));
+  v2 = (ProcessorFamily >> 8) & 0xF;
+  v3 = ProcessorFamily;
+  HvGlobalState->dwordEB0 = v2;
+  if ( v2 == 15 )
+    HvGlobalState->dwordEB0 += (ProcessorFamily >> 20);
+  v4 = ProcessorFamily & 0xF00;
+  if ( (v3 & 0xF00) == 0xF00 || v4 == 0x600 )
+    v5 = (v3 >> 4) + ((v3 >> 12) & 0xF0);
+  else
+    v5 = v3 >> 4;
+  HvGlobalState->dwordEB4 = v5;
+  *HvGlobalState->gapEB8 = v3 & 0xF;
+  if ( HvGlobalState->dwordEB0 == 15 )
+    return HvGlobalState->dwordEB4 <= 6u;
+  return v0;
+}
+
+__int64 Util::GetSpecificInfo()
+{
+  unsigned int Status;
+  int v1;
+  int v2;
+  __int16 SvmSubfeature;
+  __int64 SvmInfo;
+  int v5;
+  int v6;
+  unsigned int v7;
+  int v8;
+
+  Status = 0;
+  if ( HvGlobalState->byte150 && (v1 = HvGlobalState->dword158) != 0 )
+  {
+    v2 = v1 - 1;
+    if ( v2 )
+    {
+      if ( v2 == 1 )
+      {
+        SvmInfo = __cpuid(0x8000000A, 0);
+        SvmSubfeature = EDX(SvmInfo);
+        HIDWORD(HvGlobalState[1].qword0) = EBX(SvmInfo); // Probably number of ASIDs
+        if ( (SvmSubfeature & 1) != 0 )
+          HvGlobalState->dword1338 |= 1u;
+        if ( (SvmSubfeature & 2) != 0 )
+          HvGlobalState->dword1338 |= 2u;
+        if ( (SvmSubfeature & 8) != 0 )
+          HvGlobalState->dword1338 |= 0x10u;
+        if ( (SvmSubfeature & 0x40) != 0 )
+          HvGlobalState->dword1338 |= 0x20u;
+        if ( (SvmSubfeature & 0x80u) != 0 )
+          HvGlobalState->dword1338 |= 4u;
+        if ( (SvmSubfeature & 0x2000) != 0 )
+          HvGlobalState->dword1338 |= 0x40u;
+        if ( (SvmSubfeature & 0x8000) != 0 )
+          HvGlobalState->dword1338 |= 0x80u;
+        if ( (EDX(__cpuid(0x80000001, 0)) & 0x4000000) != 0 ) // Specific features
+          HvGlobalState->dword1338 |= 8u;
+        if ( HvGlobalState->dwordEB0 == 15 )
+        {
+          v5 = HvGlobalState->dwordEB4;
+          if ( (v5 - 104) > 23 || (v6 = 0x800009, !_bittest(&v6, v5 - 104)) || !*HvGlobalState->gapEB8 )
+          {
+            v7 = v5 - 108;
+            if ( (v5 - 108) > 16 || (v8 = 0x10009, !_bittest(&v8, v7)) || *HvGlobalState->gapEB8 < 2u )
+              LOBYTE(HvGlobalState[1].qword0) = 1;
+          }
+        }
+      }
+    }
+    else
+    {
+      return Util::GetVmxFeatures();
+    }
+  }
+  else
+  {
+    return 0xC00000BB;
+  }
+  return Status;
+}
+
+__int64 Util::GetVmxFeatures()
+{
+  __int64 _RAX; 
+  __int64 _RAX; 
+  __int64 _RAX; 
+  __int64 _RAX; 
+  unsigned __int64 VmxBasicValue; 
+  __int64 VmxProcBasedCtls; 
+  unsigned __int64 VmxProcbasedCtls2; 
+  unsigned __int64 HiVmxProcbasedCtls2; 
+  unsigned __int64 VmxEPTVpidCap; 
+  unsigned __int64 VmxEPTVpidCap_1;
+  unsigned __int64 VmxEntryCtls; 
+  unsigned __int64 VmxCr4Fixed1; 
+  unsigned __int8 PeMoInfo; 
+  int CpuExtensions; 
+  int v21; 
+
+  _RAX = 0i64;
+  __asm { cpuid }
+  if ( _RAX >= 7 )
+  {
+    Util::RetrieveCpuidInformation(7i64, 0i64, &CpuExtensions);
+    if ( (v21 & 0x400) != 0 )
+      HvGlobalState->dword1338 |= 0x100000u;
+  }
+  _RAX = 0xAi64;
+  __asm { cpuid }
+  PeMoInfo = _RAX;
+  LOBYTE(HvGlobalState[1].osversioninfow18.szCSDVersion[54]) = 1;
+  VmxBasicValue = __readmsr(MSR_IA32_VMX_BASIC);
+  if ( (VmxBasicValue & 0x80000000000000i64) != 0 )
+  {
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[4] = MSR_IA32_VMX_TRUE_PINBASED_CTLS;
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[6] = MSR_IA32_VMX_TRUE_PROCBASED_CTLS;
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[8] = MSR_IA32_VMX_TRUE_EXIT_CTLS;
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[10] = MSR_IA32_VMX_TRUE_ENTRY_CTLS;
+  }
+  else
+  {
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[4] = MSR_IA32_VMX_PINBASED_CTLS;
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[6] = MSR_IA32_VMX_PROCBASED_CTLS;
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[8] = MSR_IA32_VMX_EXIT_CTLS;
+    *&HvGlobalState[1].osversioninfow18.szCSDVersion[10] = MSR_IA32_VMX_ENTRY_CTLS;
+  }
+  VmxProcBasedCtls = __readmsr(*&HvGlobalState[1].osversioninfow18.szCSDVersion[6]);
+  if ( (VmxProcBasedCtls & 0x8000) == 0 )
+    HvGlobalState->dword1338 |= 0x200000u;
+  if ( VmxProcBasedCtls < 0 )
+  {
+    HvGlobalState->dword1338 |= 0x80000000;
+    VmxProcbasedCtls2 = __readmsr(MSR_IA32_VMX_PROCBASED_CTLS2);
+    HiVmxProcbasedCtls2 = HIDWORD(VmxProcbasedCtls2);
+    if ( (VmxProcbasedCtls2 & 0x2000000000i64) != 0 )
+    {
+      VmxEPTVpidCap = __readmsr(MSR_IA32_VMX_EPT_VPID_CAP);
+      if ( (VmxEPTVpidCap & 0x100000000i64) != 0 )
+      {
+        HvGlobalState->dword1338 |= 4u;
+        if ( (VmxEPTVpidCap & 0x10000000000i64) != 0 )
+          HvGlobalState->dword1338 |= 0x10000u;
+        if ( (VmxEPTVpidCap & 0x20000000000i64) != 0 )
+          HvGlobalState->dword1338 |= 0x20000u;
+        if ( (VmxEPTVpidCap & 0x40000000000i64) != 0 )
+          HvGlobalState->dword1338 |= 0x40000u;
+        if ( (VmxEPTVpidCap & 0x80000000000i64) != 0 )
+          HvGlobalState->dword1338 |= 0x80000u;
+      }
+    }
+    if ( (HiVmxProcbasedCtls2 & 0x80u) != 0i64 )
+      HvGlobalState->dword1338 |= 1u;
+    if ( (HiVmxProcbasedCtls2 & 4) != 0 )
+      HvGlobalState->dword1338 |= 2u;
+    if ( (HiVmxProcbasedCtls2 & 0x4000) != 0 )
+      HvGlobalState->dword1338 |= 0x8000u;
+    if ( (HiVmxProcbasedCtls2 & 2) != 0 )
+    {
+      VmxEPTVpidCap_1 = __readmsr(MSR_IA32_VMX_EPT_VPID_CAP);
+      if ( (VmxEPTVpidCap_1 & 0x100040) == 0x100040 )
+      {
+        HvGlobalState->dword1338 |= 8u;
+        if ( (VmxEPTVpidCap_1 & 1) != 0 )
+          HvGlobalState->dword1338 |= 0x200u;
+        if ( (VmxEPTVpidCap_1 & 0x100) != 0 )
+          HvGlobalState->dword1338 |= 0x40u;
+        if ( (VmxEPTVpidCap_1 & 0x4000) != 0 )
+          HvGlobalState->dword1338 |= 0x80u;
+        if ( (VmxEPTVpidCap_1 & 0x10000) != 0 )
+          HvGlobalState->dword1338 |= 0x20u;
+        if ( (VmxEPTVpidCap_1 & 0x20000) != 0 )
+          HvGlobalState->dword1338 |= 0x10u;
+        if ( (VmxEPTVpidCap_1 & 0x200000) != 0 )
+          HvGlobalState->dword1338 |= 0x100u;
+        if ( (VmxEPTVpidCap_1 & 0x2000000) != 0 )
+          HvGlobalState->dword1338 |= 0x1000u;
+        if ( (VmxEPTVpidCap_1 & 0x4000000) != 0 )
+          HvGlobalState->dword1338 |= 0x2000u;
+      }
+    }
+  }
+  VmxEntryCtls = __readmsr(*&HvGlobalState[1].osversioninfow18.szCSDVersion[10]) >> 32;
+  if ( (VmxEntryCtls & 0x2000) != 0 && PeMoInfo >= 2u )
+    HvGlobalState->dword1338 |= 0x4000u;
+  if ( (VmxEntryCtls & 0x4000) != 0 )
+    HvGlobalState->dword1338 |= 0x400u;
+  if ( (VmxEntryCtls & 0x8000) != 0 )
+    HvGlobalState->dword1338 |= 0x800u;
+  if ( (VmxEntryCtls & 0x20000) != 0 )
+    HvGlobalState->dword1338 |= 0x1000000u;
+  if ( (VmxEntryCtls & 0x40000) != 0 )
+    HvGlobalState->dword1338 |= 0x2000000u;
+  if ( (VmxEntryCtls & 0x200000) != 0 )
+    HvGlobalState->dword1338 |= 0x4000000u;
+  if ( (__readmsr(MSR_IA32_VMX_MISC) & 0x20000000) != 0 )
+    HvGlobalState->dword1338 |= 0x400000u;
+  if ( (__readmsr(*&HvGlobalState[1].osversioninfow18.szCSDVersion[4]) & 0x4000000000i64) != 0 ) // Pinbased Ctls
+    HvGlobalState->dword1338 |= 0x800000u;
+  *(&HvGlobalState[1].qword0 + 4) = __readmsr(MSR_IA32_VMX_BASIC);
+  *(&HvGlobalState[1].punicode_string8 + 4) = __readmsr(MSR_IA32_VMX_MISC);
+  *&HvGlobalState[1].gap10[4] = __readmsr(MSR_IA32_VMX_CR0_FIXED0);
+  *&HvGlobalState[1].osversioninfow18.dwMajorVersion = __readmsr(MSR_IA32_VMX_CR0_FIXED1);
+  *&HvGlobalState[1].osversioninfow18.dwBuildNumber = __readmsr(MSR_IA32_VMX_CR4_FIXED0);
+  VmxCr4Fixed1 = __readmsr(MSR_IA32_VMX_CR4_FIXED1);
+  *HvGlobalState[1].osversioninfow18.szCSDVersion = (HIDWORD(VmxCr4Fixed1) << 32) | VmxCr4Fixed1;
+  return 0i64;
+}
+
+char __fastcall Util::ProcessorFamilyWrapper(__int64 a1, __int64 a2)
+{
+  unsigned __int32 ProcessorFamily; 
+  int v3;
+  int v4; 
+
+  LOBYTE(a2) = 0;
+  if ( HvGlobalState->dword158 == 1 )
+  {
+    LOBYTE(a2) = (Util::GetProcessorFamily)((HvGlobalState->dword158 - 1), a2);
+  }
+  else if ( HvGlobalState->dword158 == 2 )
+  {
+    ProcessorFamily = EAX(__cpuid(1, 0));
+    v3 = (ProcessorFamily >> 8) & 0xF;
+    HvGlobalState->dwordEB0 = v3;
+    if ( v3 == 15 )
+      HvGlobalState->dwordEB0 += (ProcessorFamily >> 20);
+    v4 = ProcessorFamily >> 4;
+    if ( v3 == 15 )
+      HvGlobalState->dwordEB4 = v4 + ((ProcessorFamily >> 12) & 0xF0);
+    else
+      HvGlobalState->dwordEB4 = v4;
+    *HvGlobalState->gapEB8 = ProcessorFamily & 0xF;
+    LOBYTE(a2) = HvGlobalState->dwordEB0 == 15;
+  }
+  return a2;
+}
+
+__int64 __fastcall Util::QueryConfigStrings(void *IoBlockPtr, struct _UNICODE_STRING *ConfigString, char **RetPool)
+{
+  NTSTATUS ValueKey; 
+  char *PoolWithTag; 
+  char *Pool; 
+  void *RetAddr; 
+  int v7; 
+  __int64 v8; 
+  ULONG ResultLength[6]; 
+
+  ResultLength[0] = 0;
+  if ( IoBlockPtr )
+  {
+    ValueKey = ZwQueryValueKey(IoBlockPtr, ConfigString, KeyValuePartialInformation, 0i64, 0, ResultLength);
+    if ( ValueKey == 0xC0000023 )
+    {
+      PoolWithTag = ExAllocatePoolWithTag(PagedPool, ResultLength[0] + 6i64, 'MMVA');
+      Pool = PoolWithTag;
+      if ( PoolWithTag )
+      {
+        sub_1400296C0(PoolWithTag, 0, ResultLength[0] + 6i64);
+        ValueKey = ZwQueryValueKey(
+                     IoBlockPtr,
+                     ConfigString,
+                     KeyValuePartialInformation,
+                     Pool,
+                     ResultLength[0],
+                     ResultLength);
+        if ( ValueKey < 0 )
+          ExFreePoolWithTag(Pool, 'MMVA');
+        else
+          *RetPool = Pool;
+      }
+      else
+      {
+        ValueKey = 0xC0000017;
+        _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+        RetAddr = Util::RetAddr();
+        *&HvGlobalState->gapF30[16 * v7 + 8] = RetAddr;
+        *&HvGlobalState->gapF30[16 * v8 + 16] = 0xC0000017;
+      }
+    }
+  }
+  else
+  {
+    return 0xC000000D;
+  }
+  return ValueKey;
+}
+
+NTSTATUS __fastcall Util::RegistryCheck(void **Data, char SpecificAccess, char IsValueExists, ULONG *Disposition)
+{
+  ACCESS_MASK DesiredAccess; 
+  NTSTATUS result; 
+  void *KeyHandle; 
+  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
+
+  ObjectAttributes.RootDirectory = 0i64;
+  ObjectAttributes.Length = 48;
+  ObjectAttributes.Attributes = 0x240;
+  ObjectAttributes.ObjectName = HvGlobalState->punicode_string8;
+  *&ObjectAttributes.SecurityDescriptor = 0i64;
+  DesiredAccess = SpecificAccess != 0 ? 0xF003F : 0x20019;
+  if ( IsValueExists )
+  {
+    result = ZwCreateKey(&KeyHandle, DesiredAccess, &ObjectAttributes, 0, 0i64, 0, Disposition);
+    if ( result < 0 )
+      return result;
+  }
+  else
+  {
+    result = ZwOpenKey(&KeyHandle, DesiredAccess, &ObjectAttributes);
+    if ( result < 0 )
+      return result;
+    if ( Disposition )
+      *Disposition = 2;
+  }
+  *Data = KeyHandle;
+  return result;
+}

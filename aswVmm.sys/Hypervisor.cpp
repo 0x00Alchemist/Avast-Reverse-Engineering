@@ -252,3 +252,435 @@ __int64 Hypervisor::HvAllocatePhysMemory()
   }
   return Status;
 }
+
+__int64 Hypervisor::HvCreateImageInfoNotifyRoutine()
+{
+  NTSTATUS ImageNotifyRoutine; 
+  
+  ImageNotifyRoutine = 0;
+  KeEnterCriticalRegion();
+  ExAcquireResourceExclusiveLite(&HvGlobalState->eresource188, 1u);
+  if ( (dword_140045680 & 0x40) == 0 )
+  {
+    ImageNotifyRoutine = PsSetLoadImageNotifyRoutine(Notify::GetSpecificImageInfo);
+    if ( ImageNotifyRoutine >= 0 )
+    {
+      IoAcquireRemoveLockEx(&HvGlobalState->io_remove_lock488, Notify::GetSpecificImageInfo, &File, 1u, 0x20u);
+      dword_140045680 |= 0x40u;
+    }
+  }
+  ExReleaseResourceLite(&HvGlobalState->eresource188);
+  KeLeaveCriticalRegion();
+  return ImageNotifyRoutine;
+}
+
+__int64 __fastcall Hypervisor::HvCreateClose(PDRIVER_OBJECT DriverObject, IRP *pIRP)
+{
+  IoAcquireRemoveLockEx(&HvGlobalState->io_remove_lock488, pIRP, &File, 1u, 0x20u);
+  pIRP->IoStatus.Status = 0;
+  pIRP->IoStatus.Information = 0i64;
+  IofCompleteRequest(pIRP, 0);
+  IoReleaseRemoveLockEx(&HvGlobalState->io_remove_lock488, pIRP, 0x20u);
+  return 0i64;
+}
+
+__int64 __fastcall sub_14000AB30(PDRIVER_OBJECT DriverObject, IRP *pIRP)
+{
+  ULONG v4; 
+  _BYTE Data[12];
+
+  *&Data[8] = 0;
+  v4 = 0;
+  *Data = NtBuildNumber;
+  IoAcquireRemoveLockEx(&HvGlobalState->io_remove_lock488, pIRP, &File, 1u, 0x20u);
+  if ( *&KUSER_SHARED_DATA.InterruptTime.LowPart - HvGlobalState->qword168 >= 0x430E23400ui64 )
+  {
+    if ( Util::RegistryCheck(&Data[4], 1, 0, &v4) >= 0 )
+      ZwSetValueKey(*&Data[4], &LastNtBuildStr, 0, 4u, Data, 4u);
+    if ( *&Data[4] )
+      ZwClose(*&Data[4]);
+  }
+  if ( pIRP )
+  {
+    pIRP->IoStatus.Information = 0i64;
+    pIRP->IoStatus.Status = 0;
+    IofCompleteRequest(pIRP, 0);
+  }
+  IoReleaseRemoveLockEx(&HvGlobalState->io_remove_lock488, pIRP, 0x20u);
+  return 0i64;
+}
+
+__int64 __fastcall Hypervisor::HvConfigRoutine(char CheckConfig)
+{
+  NTSTATUS Status;
+  int v2; 
+  void *v3; 
+  __int64 v4; 
+  __int64 v5; 
+  PVOID Pointer; 
+  PVOID hKey; 
+  PVOID v8; 
+  void *v9; 
+  void *v10; 
+  void *v11; 
+  PVOID v12; 
+  PVOID v13; 
+  PVOID v14; 
+  PVOID v15; 
+  PVOID v16; 
+  PVOID v17; 
+  PVOID v18; 
+  PVOID v19; 
+  PVOID v20; 
+  bool v21; 
+  PVOID v22; 
+  PVOID v23; 
+  PVOID v24; 
+  PVOID v25; 
+  PVOID v26; 
+  unsigned __int16 v27; 
+  int v28; 
+  PVOID v29; 
+  PVOID v30; 
+  PVOID v31; 
+  PVOID v32; 
+  PVOID v33; 
+  PVOID v34; 
+  PVOID v35; 
+  ULONG v37; 
+  PVOID P; 
+  struct _IO_STATUS_BLOCK IoStatusBlock; 
+
+  Status = 0;
+  P = 0i64;
+  v2 = 0;
+  IoStatusBlock.Pointer = 0i64;
+  v37 = 0;
+  if ( KeGetCurrentIrql() < 2u )
+  {
+    KeEnterCriticalRegion();
+    ExAcquireResourceExclusiveLite(&HvGlobalState->eresource188, 1u);
+    Util::RegistryCheck(&IoStatusBlock, 0, CheckConfig, &v37);
+    Pointer = IoStatusBlock.Pointer;
+    if ( CheckConfig )
+    {
+      if ( IoStatusBlock.Pointer )
+      {
+        if ( !*HvGlobalState->gap10 )
+        {
+          qword_140045728 = sub_1400236A4;
+          qword_140045730 = ApcRoutine;
+          hKey = IoStatusBlock.Pointer;
+          *HvGlobalState->gap10 = IoStatusBlock.Pointer;
+          if ( ZwNotifyChangeKey(hKey, 0i64, ApcRoutine, 1, &IoStatusBlock, 4u, 1u, 0i64, 0, 1u) != 0x103 )
+            *HvGlobalState->gap10 = 0i64;
+        }
+      }
+    }
+    if ( Util::QueryConfigString(Pointer, &MaskVmm, &P) >= 0 )
+    {
+      v8 = P;
+      if ( *(P + 1) == 4 )
+        HvGlobalState->byte4F4 = *(P + 3) != 0;
+      ExFreePoolWithTag(v8, 'MMVA');
+      P = 0i64;
+    }
+    v9 = *HvGlobalState->gap510;
+    if ( v9 )
+    {
+      ExFreePoolWithTag(v9, 'MMVA');
+      *HvGlobalState->gap510 = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, &OtherVmms, &P) >= 0 )
+    {
+      if ( *(P + 1) == 7 )
+        *HvGlobalState->gap510 = P;
+      else
+        ExFreePoolWithTag(P, 'MMVA');
+      P = 0i64;
+    }
+    v10 = *&HvGlobalState->gap510[16];
+    if ( v10 )
+    {
+      ExFreePoolWithTag(v10, 'MMVA');
+      *&HvGlobalState->gap510[16] = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, DontHideVmmFiles, &P) >= 0 )
+    {
+      if ( *(P + 1) == 7 )
+        *&HvGlobalState->gap510[16] = P;
+      else
+        ExFreePoolWithTag(P, 'MMVA');
+      P = 0i64;
+    }
+    v11 = *&HvGlobalState->gap510[8];
+    if ( v11 )
+    {
+      ExFreePoolWithTag(v11, 'MMVA');
+      *&HvGlobalState->gap510[8] = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, DontHideVmmPaths, &P) >= 0 )
+    {
+      if ( *(P + 1) == 7 )
+        *&HvGlobalState->gap510[8] = P;
+      else
+        ExFreePoolWithTag(P, 'MMVA');
+      P = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, DontDetectOtherVmms, &P) >= 0 )
+    {
+      v12 = P;
+      if ( *(P + 1) == 4 )
+        HvGlobalState->gap4F5[11] = *(P + 3) != 0;
+      ExFreePoolWithTag(v12, 'MMVA');
+      P = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, VirtualizeUnderOtherVmm, &P) >= 0 )
+    {
+      v13 = P;
+      if ( *(P + 1) == 4 )
+        HvGlobalState->byte501 = *(P + 3) != 0;
+      ExFreePoolWithTag(v13, 'MMVA');
+      P = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, &TimingTreshold, &P) >= 0 )
+    {
+      v14 = P;
+      if ( *(P + 1) == 4 )
+        HvGlobalState->qword508 = *(P + 3);
+      ExFreePoolWithTag(v14, 'MMVA');
+      P = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, &AutoStart, &P) >= 0 )
+    {
+      v15 = P;
+      if ( *(P + 1) == 4 )
+        HvGlobalState->byte528 = *(P + 3) != 0;
+      ExFreePoolWithTag(v15, 'MMVA');
+      P = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, &Interrupts, &P) >= 0 )
+    {
+      v16 = P;
+      if ( *(P + 1) == 4 )
+        *(&HvGlobalState->byte528 + 1) = *(P + 3) != 0;
+      ExFreePoolWithTag(v16, 'MMVA');
+      P = 0i64;
+    }
+    if ( Util::QueryConfigString(Pointer, &ProcMon, &P) < 0 )
+    {
+      v18 = P;
+    }
+    else
+    {
+      v17 = P;
+      if ( *(P + 1) == 4 )
+        HvGlobalState->byte502 = *(P + 3) != 0;
+      ExFreePoolWithTag(v17, 'MMVA');
+      v18 = 0i64;
+      P = 0i64;
+    }
+    if ( CheckConfig )
+    {
+      if ( Util::QueryConfigString(Pointer, &PMI, &P) < 0 )
+      {
+        v18 = P;
+      }
+      else
+      {
+        v19 = P;
+        if ( *(P + 1) == 4 )
+          HvGlobalState->byte503 = *(P + 3) != 0;
+        ExFreePoolWithTag(v19, 'MMVA');
+        v18 = 0i64;
+        P = 0i64;
+      }
+    }
+    if ( *HvGlobalState->gap438 != 1 )
+    {
+      if ( HvGlobalState->byte4F4 )
+      {
+        if ( Util::QueryConfigString(Pointer, &NestedVmbios, &P) >= 0 )
+        {
+          v20 = P;
+          if ( *(P + 1) == 4 )
+          {
+            v21 = *(P + 3) == 0;
+            HvGlobalState->byte4F2 = *(P + 3) != 0;
+            HvGlobalState->byte4F3 = v21;
+          }
+          ExFreePoolWithTag(v20, 'MMVA');
+          P = 0i64;
+        }
+        if ( Util::QueryConfigString(Pointer, &MaskVmbios, &P) >= 0 )
+        {
+          v22 = P;
+          if ( *(P + 1) == 4 )
+            HvGlobalState->byte4F3 = *(P + 3) != 0;
+          ExFreePoolWithTag(v22, 'MMVA');
+          P = 0i64;
+        }
+      }
+      if ( CheckConfig )
+      {
+        if ( Util::QueryConfigString(Pointer, DontDoSmth, &P) >= 0 )
+        {
+          if ( *(P + 1) == 4 && *(P + 3) )
+            v2 = 1;
+          ExFreePoolWithTag(P, 'MMVA');
+          P = 0i64;
+        }
+        if ( Util::QueryConfigString(Pointer, &NtBuildVirt, &P) >= 0 )
+        {
+          v23 = P;
+          if ( *(P + 1) == 4 )
+            HvGlobalState->word52A = *(P + 6);
+          ExFreePoolWithTag(v23, 'MMVA');
+          P = 0i64;
+        }
+        if ( Util::QueryConfigString(Pointer, NtBuildSyscallVmm, &P) >= 0 )
+        {
+          v24 = P;
+          if ( *(P + 1) == 4 )
+            HvGlobalState->word52C = *(P + 6);
+          ExFreePoolWithTag(v24, 'MMVA');
+          P = 0i64;
+        }
+        if ( Util::QueryConfigString(Pointer, NtBuildSyscallIfh, &P) >= 0 )
+        {
+          v25 = P;
+          if ( *(P + 1) == 4 )
+            HvGlobalState->word52E = *(P + 6);
+          ExFreePoolWithTag(v25, 'MMVA');
+          P = 0i64;
+        }
+        if ( Util::QueryConfigString(Pointer, BlockSmth, &P) >= 0 )
+        {
+          if ( *(P + 1) == 4 && *(P + 3) )
+            v2 |= 2u;
+          ExFreePoolWithTag(P, 'MMVA');
+          P = 0i64;
+        }
+        if ( Util::QueryConfigString(Pointer, &LastNtBuildStr, &P) >= 0 )
+        {
+          v26 = P;
+          if ( *(P + 1) == 4 )
+          {
+            v27 = *(P + 6);
+            *&HvGlobalState->gap163[1] = v27;
+            if ( v27 < NtBuildNumber )
+              v2 |= 4u;
+          }
+          ExFreePoolWithTag(v26, 'MMVA');
+          P = 0i64;
+        }
+        v28 = v2 | 8;
+        if ( NtBuildNumber < HvGlobalState->word52A )
+          v28 = v2;
+        if ( v28 )
+        {
+          *&HvGlobalState->gap4F5[3] = v28;
+          HvGlobalState->gap4F5[7] = 1;
+          if ( (v28 & 6) != 0 )
+            HvGlobalState->gap4F5[8] = 1;
+        }
+        if ( !HvGlobalState->gap4F5[7] )
+        {
+          if ( Util::QueryConfigString(Pointer, &DontSyscallVmm, &P) >= 0 )
+          {
+            v29 = P;
+            if ( *(P + 1) == 4 )
+              HvGlobalState->gap4F5[7] = *(P + 3) != 0;
+            ExFreePoolWithTag(v29, 'MMVA');
+            P = 0i64;
+          }
+          if ( !HvGlobalState->gap4F5[7] && NtBuildNumber >= HvGlobalState->word52C )
+            HvGlobalState->gap4F5[7] = 1;
+        }
+        if ( !HvGlobalState->gap4F5[8] )
+        {
+          if ( Util::QueryConfigString(Pointer, &DontSyscallIfh, &P) >= 0 )
+          {
+            v30 = P;
+            if ( *(P + 1) == 4 )
+              HvGlobalState->gap4F5[8] = *(P + 3) != 0;
+            ExFreePoolWithTag(v30, 'MMVA');
+            P = 0i64;
+          }
+          if ( !HvGlobalState->gap4F5[8] && NtBuildNumber >= HvGlobalState->word52E )
+            HvGlobalState->gap4F5[8] = 1;
+        }
+      }
+      if ( Util::QueryConfigString(Pointer, &TimingFix, &P) >= 0 )
+      {
+        v31 = P;
+        if ( *(P + 1) == 4 )
+          HvGlobalState->gap4F5[9] = *(P + 3) != 0;
+        ExFreePoolWithTag(v31, 'MMVA');
+        P = 0i64;
+      }
+      if ( Util::QueryConfigString(Pointer, &TscExiting, &P) >= 0 )
+      {
+        v32 = P;
+        if ( *(P + 1) == 4 )
+          HvGlobalState->gap4F5[10] = *(P + 3) != 0;
+        ExFreePoolWithTag(v32, 'MMVA');
+        P = 0i64;
+      }
+      if ( Util::QueryConfigString(Pointer, &NestedPaging, &P) >= 0 )
+      {
+        v33 = P;
+        if ( *(P + 1) == 4 )
+          HvGlobalState->byte4C9 = *(P + 3) != 0;
+        ExFreePoolWithTag(v33, 'MMVA');
+        P = 0i64;
+      }
+      if ( Util::QueryConfigString(Pointer, NP4KB, &P) >= 0 )
+      {
+        v34 = P;
+        if ( *(P + 1) == 4 )
+          HvGlobalState->gap4CA = *(P + 3) != 0;
+        ExFreePoolWithTag(v34, 'MMVA');
+        P = 0i64;
+      }
+      if ( Util::QueryConfigString(Pointer, &NestedUsage, &P) < 0 )
+      {
+        v18 = P;
+      }
+      else
+      {
+        v35 = P;
+        if ( *(P + 1) == 4 )
+          HvGlobalState->byte4CB = *(P + 3) != 0;
+        ExFreePoolWithTag(v35, 'MMVA');
+        v18 = 0i64;
+      }
+    }
+    if ( HvGlobalState->byte4CB )
+    {
+      HvGlobalState->byte4C9 = 1;
+      HvGlobalState->gap4CA = 1;
+    }
+    if ( HvGlobalState->byte15D )
+      HvGlobalState->byte502 = 1;
+    if ( HvGlobalState->gap4F5[9] )
+      HvGlobalState->gap4F5[10] = 1;
+    if ( !CheckConfig && HvGlobalState->byte4C9 && !HvGlobalState->byte4C8 )
+      HvGlobalState->byte4C9 = 0;
+    ExReleaseResourceLite(&HvGlobalState->eresource188);
+    KeLeaveCriticalRegion();
+    if ( v18 )
+      ExFreePoolWithTag(v18, 'MMVA');
+    if ( Pointer && *HvGlobalState->gap10 != Pointer )
+      ZwClose(Pointer);
+  }
+  else
+  {
+    Status = 0xC00000BB;
+    _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+    v3 = Util::RetAddr();
+    *&HvGlobalState->gapF30[16 * v4 + 8] = v3;
+    *&HvGlobalState->gapF30[16 * v5 + 16] = 0xC00000BB;
+  }
+  return Status;
+}
