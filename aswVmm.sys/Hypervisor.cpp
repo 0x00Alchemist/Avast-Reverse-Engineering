@@ -684,3 +684,55 @@ __int64 __fastcall Hypervisor::HvConfigRoutine(char CheckConfig)
   }
   return Status;
 }
+
+void __fastcall Hypervisor::BugCheckCallback(
+        KBUGCHECK_CALLBACK_REASON Reason,
+        struct _KBUGCHECK_REASON_CALLBACK_RECORD *Record,
+        _DWORD *ReasonSpecificData,
+        ULONG ReasonSpecificDataLength)
+{
+  unsigned __int64 v5; 
+  __int64 v6; 
+  __int64 v7; 
+  struct_v12 *CSDVer; 
+  unsigned __int64 v9; 
+  __int64 v10; 
+
+  if ( Reason == KbCallbackAddPages && ReasonSpecificDataLength == 32 )
+  {
+    v5 = 0i64;
+    v6 = *ReasonSpecificData;
+    if ( *ReasonSpecificData )
+    {
+      v7 = (v6 - 1);
+      if ( v7 >= HvGlobalState->ActiveProcessorCount )
+      {
+        ReasonSpecificData[2] = 0;
+LABEL_12:
+        *(ReasonSpecificData + 3) = v5;
+        *ReasonSpecificData = v6 + 1;
+        return;
+      }
+      CSDVer = *&HvGlobalState[1].osversioninfow18.szCSDVersion[4 * v7 + 56];
+      if ( !CSDVer )
+      {
+        ReasonSpecificData[2] = 0x80000000;
+        goto LABEL_12;
+      }
+      ReasonSpecificData[2] = 0x80000001;
+      *(ReasonSpecificData + 2) = CSDVer->pvoid28;
+      v9 = CSDVer->pmdl30->ByteCount;
+    }
+    else
+    {
+      ReasonSpecificData[2] = 0x80000001;
+      v10 = *HvGlobalState->gap138;
+      if ( !v10 )
+        goto LABEL_12;
+      *(ReasonSpecificData + 2) = v10;
+      v9 = *(*&HvGlobalState->gap138[8] + 0x28i64);
+    }
+    v5 = v9 >> 12;
+    goto LABEL_12;
+  }
+}

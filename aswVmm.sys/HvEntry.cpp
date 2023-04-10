@@ -1,6 +1,6 @@
 __int64 __fastcall Hypervisor::HvEntry(PDRIVER_OBJECT DriverObject, UNICODE_STRING *RegistryPath)
 {
-  int append; 
+  int append;
   ULONG ActiveProcessorCount; 
   __int64 Length; 
   __int64 v8; 
@@ -42,7 +42,7 @@ __int64 __fastcall Hypervisor::HvEntry(PDRIVER_OBJECT DriverObject, UNICODE_STRI
   ULONG Seed[2]; 
   PDEVICE_OBJECT DeviceObject; 
   __int64 (*v46)(); 
-  __int64 v47[2]; 
+  __int64 HalRequestSoftwareInterrupt[2]; 
   struct _UNICODE_STRING DestinationString; 
   struct _UNICODE_STRING SystemRoutineName; 
   struct _UNICODE_STRING PowerStateCallbackStr; 
@@ -83,7 +83,7 @@ __int64 __fastcall Hypervisor::HvEntry(PDRIVER_OBJECT DriverObject, UNICODE_STRI
     goto LABEL_125;
   HvGlobalState = DeviceObj->DeviceExtension;
   Util::MmQuery(RegistryPath, &HvGlobalState->dword134);
-  HvGlobalState->qword0 = DeviceObj;
+  HvGlobalState->HvDevice = DeviceObj;
   HvGlobalState->osversioninfow18.dwOSVersionInfoSize = 0x11C;
   RtlGetVersion(&HvGlobalState->osversioninfow18);
   if ( Util::CheckDdiAvailability(0x6020000u) )
@@ -111,18 +111,18 @@ __int64 __fastcall Hypervisor::HvEntry(PDRIVER_OBJECT DriverObject, UNICODE_STRI
   append = IoAcquireRemoveLockEx(&HvGlobalState->io_remove_lock488, 0x4D4D5641, &File, 1u, 0x20u);
   if ( append < 0 )
     goto LABEL_3;
-  dword_140045680 |= 1u;
+  GlobalStatus |= 1u;
   append = ExInitializeResourceLite(&HvGlobalState->eresource188);
   if ( append < 0 )
     goto LABEL_3;
   Length = RegistryPath->Length;
-  dword_140045680 |= 0x20u;
+  GlobalStatus |= 0x20u;
   v8 = Length + 24;
   HvGlobalState->punicode_string8 = ExAllocatePoolWithTag(PagedPool, v8 + 16, 0x4D4D5641u);
   DriverObject = HvGlobalState->punicode_string8;
   if ( !DriverObject )
     goto LABEL_15;
-  dword_140045680 |= 0x400u;
+  GlobalStatus |= 0x400u;
   DriverObject->Type = 0;
   HvGlobalState->punicode_string8->MaximumLength = v8;
   HvGlobalState->punicode_string8->Buffer = &HvGlobalState->punicode_string8[1].Length;
@@ -132,18 +132,18 @@ __int64 __fastcall Hypervisor::HvEntry(PDRIVER_OBJECT DriverObject, UNICODE_STRI
     goto LABEL_3;
   HvGlobalState->byte150 = Utill::GetExtendedCpuInfo() != 0;
   StandardCpuInfo = Util::GetStandardCpuInfo();
-  HvGlobalState->dword158 = StandardCpuInfo;
+  HvGlobalState->StandardCpuInfo = StandardCpuInfo;
   DriverObject = HvGlobalState;
   HvGlobalState->dword154 = StandardCpuInfo;
-  if ( !HvGlobalState->dword158 )
+  if ( !HvGlobalState->StandardCpuInfo )
   {
     append = 0xC00000BB;
     goto LABEL_3;
   }
   if ( Util::ProcessorFamilyWrapper(DriverObject, RegistryPath) )
     HvGlobalState->byte150 = 0;
-  if ( HvGlobalState->dword158 == 3 )
-    HvGlobalState->dword158 = 1;
+  if ( HvGlobalState->StandardCpuInfo == 3 )
+    HvGlobalState->StandardCpuInfo = 1;
   Hypervisor::HvConfigRoutine(1);
   ProcessorType = __cpuid(1, 0);
   DWORD1(v40) = EBX(ProcessorType);             // Brand ID
@@ -243,7 +243,7 @@ LABEL_45:
   if ( HvGlobalState->byte150 )
   {
     Util::GetSpecificInfo();
-    dword158 = HvGlobalState->dword158;
+    dword158 = HvGlobalState->StandardCpuInfo;
     if ( dword158 != 1 )
     {
       if ( dword158 != 2 )
@@ -260,7 +260,7 @@ LABEL_65:
     }
   }
 LABEL_66:
-  HvGlobalState->dword170 = ActiveProcessorCount;
+  HvGlobalState->ActiveProcessorCount = ActiveProcessorCount;
   if ( sub_14002804E() )
   {
     v19 = ECX(__cpuid(1, 0));
@@ -269,7 +269,7 @@ LABEL_66:
     HvGlobalState->byte162 = v21;
   }
   Util::FindSpecificHvFuncs();
-  dword_140045680 |= 0x40000u;
+  GlobalStatus |= 0x40000u;
   HvGlobalState->qword168 = *&KUSER_SHARED_DATA.InterruptTime.LowPart;
   byte502 = HvGlobalState->byte502;
   p_qword4B8 = &HvGlobalState->qword4B8;
@@ -278,7 +278,7 @@ LABEL_66:
   Security::HvIntegrityCheck(DriverObject->DriverStart, DriverObject->DriverSize);
   if ( !HvGlobalState->byte150 )
     goto LABEL_111;
-  v20 = (dword_140045680 & 0x200) == 0;
+  v20 = (GlobalStatus & 0x200) == 0;
   HvGlobalState->qword178 = 0i64;
   if ( v20 )
   {
@@ -288,7 +288,7 @@ LABEL_66:
     append = sub_140022904(v24);
     if ( append < 0 )
       goto LABEL_3;
-    dword_140045680 |= 0x200u;
+    GlobalStatus |= 0x200u;
   }
   if ( !HvGlobalState->byte502 || (append = sub_14001C6A0(), append >= 0) )
   {
@@ -296,7 +296,7 @@ LABEL_66:
     {
       v46 = sub_140020F80;
       if ( (HalDispatchTable->HalSetSystemInformation)(1i64, 8i64, &v46) >= 0 )
-        dword_140045680 |= 0x10000u;
+        GlobalStatus |= 0x10000u;
       else
         HvGlobalState->byte503 = 0;
     }
@@ -308,25 +308,25 @@ LABEL_66:
         && HvGlobalState->qwordED8
         && (HvGlobalState->qword430 = pfuncED0(sub_140020F98, 0i64), v25 = HvGlobalState, HvGlobalState->qword430) )
       {
-        dword_140045680 |= 0x20000u;
+        GlobalStatus |= 0x20000u;
       }
       else
       {
         v25->byte504 = 0;
       }
     }
-    HvGlobalState->qword428 = KeRegisterProcessorChangeCallback(CallbackFunction, 0i64, 0);
-    if ( HvGlobalState->qword428 )
-      dword_140045680 |= 0x80u;
-    dword_140045680 |= 0x10u;
-    HvGlobalState->qword470 = 0xFFFFFFFFFFFFFFFFui64 << EAX(__cpuid(0x80000008, 0));
+    HvGlobalState->ProcessorChangeCallback = KeRegisterProcessorChangeCallback(CallbackFunction, 0i64, 0);
+    if ( HvGlobalState->ProcessorChangeCallback )
+      GlobalStatus |= 0x80u;
+    GlobalStatus |= 0x10u;
+    HvGlobalState->qword470 = 0xFFFFFFFFFFFFFFFFui64 << EAX(__cpuid(0x80000008, 0));// Address size info
     sub_140022D18();
     append = Hypervisor::HvAllocatePhysMemory();
     if ( append >= 0 )
     {
       v27 = HvGlobalState;
       v28 = 0;
-      if ( HvGlobalState->dword170 )
+      if ( HvGlobalState->ActiveProcessorCount )
       {
         while ( 1 )
         {
@@ -338,7 +338,7 @@ LABEL_66:
           v31 = v28++;
           *&HvGlobalState[1].osversioninfow18.szCSDVersion[4 * v31 + 56] = v30;
           v27 = HvGlobalState;
-          if ( v28 >= HvGlobalState->dword170 )
+          if ( v28 >= HvGlobalState->ActiveProcessorCount )
             goto LABEL_95;
         }
 LABEL_15:
@@ -347,7 +347,7 @@ LABEL_15:
       }
 LABEL_95:
       v32 = 0;
-      if ( v27->dword170 )
+      if ( v27->ActiveProcessorCount )
       {
         while ( 1 )
         {
@@ -369,7 +369,7 @@ LABEL_95:
                      *&HvGlobalState[1].osversioninfow18.szCSDVersion[4 * CurrentProcessorNumber + 56],
                      CurrentProcessorNumber,
                      &Affinity);
-          if ( append >= 0 && ++v32 < HvGlobalState->dword170 )
+          if ( append >= 0 && ++v32 < HvGlobalState->ActiveProcessorCount )
             continue;
           break;
         }
@@ -384,13 +384,13 @@ LABEL_95:
       }
       else
       {
-        dword_140045680 |= 0x100u;
+        GlobalStatus |= 0x100u;
         HvGlobalState->byte4C8 = 1;
       }
       KeInitializeEvent(&HvGlobalState->kevent408, NotificationEvent, 0);
       KeInitializeEvent(&HvGlobalState->kevent440, NotificationEvent, 0);
       KeInitializeEvent(&HvGlobalState->kevent458, NotificationEvent, 1u);
-      dword_140045680 |= 0x4000u;
+      GlobalStatus |= 0x4000u;
       HvGlobalState->qwordD38 = 0i64;
       p_qwordD40 = &HvGlobalState->qwordD40;
       HvGlobalState->qwordD48 = &HvGlobalState->qwordD40;
@@ -406,19 +406,22 @@ LABEL_95:
       if ( HvGlobalState->byte15C )
       {
         RtlInitUnicodeString(&SystemRoutineName, L"HalRequestSoftwareInterrupt");
-        v47[1] = 161i64;
-        v47[0] = MmGetSystemRoutineAddress(&SystemRoutineName);
-        if ( v47[0] )
+        HalRequestSoftwareInterrupt[1] = 161i64;
+        HalRequestSoftwareInterrupt[0] = MmGetSystemRoutineAddress(&SystemRoutineName);
+        if ( HalRequestSoftwareInterrupt[0] )
         {
-          if ( sub_14001F5D8(v47, v37, &HvGlobalState->qwordD50) >= 0 && *HvGlobalState->qwordD50 )
+          if ( sub_14001F5D8(HalRequestSoftwareInterrupt, v37, &HvGlobalState->qwordD50) >= 0
+            && *HvGlobalState->qwordD50 )
+          {
             HvGlobalState->qwordD50 = 0i64;
+          }
         }
       }
 LABEL_111:
       append = IoRegisterShutdownNotification(DeviceObj);
       if ( !append )
       {
-        dword_140045680 |= 2u;
+        GlobalStatus |= 2u;
         *&ProcNumber[0].Group = 0i64;
         hPwrStateCallback = 0i64;
         RtlInitUnicodeString(&PowerStateCallbackStr, L"\\Callback\\PowerState");
@@ -432,34 +435,34 @@ LABEL_111:
         if ( *&ProcNumber[0].Group )
           ObfDereferenceObject(*&ProcNumber[0].Group);
         DriverObject = HvGlobalState;
-        HvGlobalState->qword420 = hPwrStateCallback;
-        if ( !HvGlobalState->qword420 )
+        HvGlobalState->PowerStateCallback = hPwrStateCallback;
+        if ( !HvGlobalState->PowerStateCallback )
         {
           append = 0xC000000D;
           goto LABEL_3;
         }
-        dword_140045680 |= 4u;
-        RtlInitUnicodeString(&SymbolicLinkName, off_14002B9B0[HvProductType]);
+        GlobalStatus |= 4u;
+        RtlInitUnicodeString(&SymbolicLinkName, DosDevices[HvProductType]);
         append = IoCreateSymbolicLink(&SymbolicLinkName, &DestinationString);
         if ( !append )
         {
-          dword_140045680 |= 8u;
+          GlobalStatus |= 8u;
           if ( HvGlobalState->byte4CB )
           {
             *Seed = 0xFFFFFFFFFF676980ui64;
             KeInitializeTimerEx(&HvGlobalState->ktimerE30, SynchronizationTimer);
             KeInitializeDpc(&HvGlobalState->kdpcE70, DeferredRoutine, 0i64);
             KeSetTimerEx(&HvGlobalState->ktimerE30, *Seed, 1000, &HvGlobalState->kdpcE70);
-            dword_140045680 |= 0x2000u;
+            GlobalStatus |= 0x2000u;
           }
           HvGlobalState->kbugcheck_reason_callback_recordF00.State = 0;
           if ( KeRegisterBugCheckReasonCallback(
                  &HvGlobalState->kbugcheck_reason_callback_recordF00,
-                 CallbackRoutine,
+                 Hypervisor::BugCheckCallback,
                  KbCallbackAddPages,
                  "aswVmm") )
           {
-            dword_140045680 |= 0x8000u;
+            GlobalStatus |= 0x8000u;
           }
           if ( !HvGlobalState->byte528 )
             return 0;

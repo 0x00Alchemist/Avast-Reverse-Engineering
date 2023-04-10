@@ -1007,3 +1007,51 @@ NTSTATUS __fastcall Util::RegistryCheck(void **Data, char SpecificAccess, char I
   *Data = KeyHandle;
   return result;
 }
+
+__int64 __fastcall Util::EventWrapper(int Flag)
+{
+  unsigned int v1; 
+
+  v1 = *HvGlobalState->gap438;
+  *HvGlobalState->gap438 = Flag;
+  if ( Flag == 1 )
+  {
+    if ( v1 != 1 )
+    {
+      KeSetEvent(&HvGlobalState->kevent440, 1, 0);
+      KeResetEvent(&HvGlobalState->kevent458);
+    }
+  }
+  else if ( v1 == 1 )
+  {
+    KeResetEvent(&HvGlobalState->kevent440);
+    KeSetEvent(&HvGlobalState->kevent458, 1, 0);
+  }
+  return v1;
+}
+
+struct_HvGlobalState *__fastcall Util::FreeSpecificPool(char FreePool)
+{
+  void *v1; 
+  void *v2; 
+  struct_HvGlobalState *v4; 
+  struct_HvGlobalState *result; 
+
+  v1 = *&HvGlobalState->gap1F0[0x1C0];
+  if ( v1 && FreePool )
+    ExFreePoolWithTag(v1, 'MMVA');
+  v4 = HvGlobalState;
+  *&HvGlobalState->gap1F0[0x1C0] = 0i64;
+  *&v4->gap1F0[0x1D0] = 0i64;
+  v2 = *&HvGlobalState->gap1F0[0x1E0];
+  if ( v2 && FreePool )
+    ExFreePoolWithTag(v2, 'MMVA');
+  v4 = HvGlobalState;
+  *&HvGlobalState->gap1F0[0x1E0] = 0i64;
+  *&v4->gap1F0[0x1F0] = 0i64;
+  *&HvGlobalState->gap1F0[0x128] = 0i64;
+  sub_1400296C0(&HvGlobalState->gap1F0[0x138], 0, 0x80ui64);
+  result = HvGlobalState;
+  HvGlobalState->gap1F0[0x1B8] = 0;
+  return result;
+}
