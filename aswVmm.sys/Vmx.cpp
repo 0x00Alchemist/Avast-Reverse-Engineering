@@ -65,3 +65,15 @@ unsigned __int64 __fastcall Vmx::VmRead(__int64 Field, __int64 FieldValue)
         retn
     }
 }
+
+unsigned __int64 __fastcall Vmx::Vmxon(__int64 _RCX)
+{
+  __asm { vmxon   qword ptr [rcx] }
+  return __readeflags();
+}
+
+unsigned __int64 Vmx::Vmxoff()
+{
+  __vmx_off();
+  return __readeflags();
+}

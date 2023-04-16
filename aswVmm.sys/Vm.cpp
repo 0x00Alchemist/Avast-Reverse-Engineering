@@ -16,8 +16,6 @@ __int64 __fastcall Vm::SaveState(__int64 state)
   return savedState;
 }
 
-
-
 __int64 __fastcall Vm::Vmcall(__int64 command)
 {
     __asm
@@ -101,3 +99,53 @@ unsigned __int64 Vm::Start()
         retn
     }
 }
+
+unsigned __int64 __fastcall Vm::Vmclear(__int64 _RCX)
+{
+  __asm { vmclear qword ptr [rcx] }
+  return __readeflags();
+}
+
+unsigned __int64 __fastcall Vm::Vmptrld(__int64 _RCX)
+{
+  __asm { vmptrld qword ptr [rcx] }
+  return __readeflags();
+}
+
+unsigned __int64 __fastcall Vm::Vmptrst(void *VmcsPhysAddr)
+{
+  __vmx_vmptrst(VmcsPhysAddr);
+  return __readeflags();
+}
+
+void Vm::Invd()
+{
+  __asm { invd }
+}
+
+void __fastcall Vm::LoadGDT(void *Src)
+{
+  __lgdt(Src);
+}
+
+void __fastcall Vm::LoadIDT(void *Src)
+{
+  __lidt(Src);
+}
+
+__int16 Vm::Str()
+{
+  __int16 result; 
+
+  __asm { str     ax }
+  return result;
+}
+
+__int64 __fastcall Vm::Xgetbv(__int64 a1, __int64 a2)
+{
+  __int64 v2; 
+
+  __asm { xgetbv }
+  return (a2 << 32) | v2;
+}
+

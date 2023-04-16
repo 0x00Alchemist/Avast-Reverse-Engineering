@@ -1055,3 +1055,484 @@ struct_HvGlobalState *__fastcall Util::FreeSpecificPool(char FreePool)
   HvGlobalState->gap1F0[0x1B8] = 0;
   return result;
 }
+
+__int64 __fastcall Util::CheckKeyValueName(_UNICODE_STRING *Str, WCHAR *Name)
+{
+  USHORT MaxLen; 
+  unsigned __int64 i; 
+  __int64 result; 
+  USHORT Len; 
+
+  MaxLen = 0;
+  if ( Name )
+  {
+    i = -1i64;
+    do
+      ++i;
+    while ( Name[i] );
+    if ( i > 0x7FFE )
+      return 0xC0000106i64;
+    Len = 2 * i;
+    MaxLen = Len + 2;
+  }
+  else
+  {
+    Name = 0i64;
+    Len = 0;
+  }
+  Str->Length = Len;
+  result = 0i64;
+  Str->MaximumLength = MaxLen;
+  Str->Buffer = Name;
+  return result;
+}
+
+PVOID __fastcall Util::MapSection(struct _UNICODE_STRING *Library)
+{
+  void *SectionHandle; 
+  void *FileHandle; 
+  PVOID BaseAddress; 
+  ULONG_PTR ViewSize; 
+  struct _IO_STATUS_BLOCK IoStatusBlock; 
+  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
+
+  BaseAddress = 0i64;
+  ViewSize = 0i64;
+  FileHandle = -1i64;
+  SectionHandle = -1i64;
+  if ( Library )
+  {
+    ObjectAttributes.RootDirectory = 0i64;
+    ObjectAttributes.Length = 48;
+    ObjectAttributes.Attributes = 0x240;
+    ObjectAttributes.ObjectName = Library;
+    *&ObjectAttributes.SecurityDescriptor = 0i64;
+    if ( ZwOpenFile(&FileHandle, 0x100020u, &ObjectAttributes, &IoStatusBlock, 1u, 0x20u) >= 0 )
+    {
+      ObjectAttributes.ObjectName = 0i64;
+      if ( ZwCreateSection(&SectionHandle, 0xCu, &ObjectAttributes, 0i64, 2u, 0x1000000u, FileHandle) >= 0 )
+        ZwMapViewOfSection(
+          SectionHandle,
+          0xFFFFFFFFFFFFFFFFi64,
+          &BaseAddress,
+          0i64,
+          0i64,
+          0i64,
+          &ViewSize,
+          ViewUnmap,
+          0,
+          2u);
+    }
+    if ( SectionHandle != -1i64 )
+      ZwClose(SectionHandle);
+    if ( FileHandle != -1i64 )
+      ZwClose(FileHandle);
+  }
+  return BaseAddress;
+}
+
+int __fastcall Util::GetSyscallAddress(char *FunctionName)
+{
+  PVOID BaseAddress; 
+  void *BA; 
+  char *i; 
+  __int64 Gate; 
+  struct _UNICODE_STRING Ntdll; 
+
+  *&Ntdll.Length = 0x3E003C;
+  Ntdll.Buffer = L"\\SystemRoot\\System32\\ntdll.dll";
+  BaseAddress = Util::MapSection(&Ntdll);
+  BA = BaseAddress;
+  if ( BaseAddress )
+  {
+    for ( i = FunctionName; *i; i += 16 )
+    {
+      Gate = Util::GetNextGate(BA, *i);
+      if ( !Gate )
+        break;
+      if ( *Gate == 0x4C && *(Gate + 1) == 0x8B && *(Gate + 2) == 0xD1 && *(Gate + 3) == 0xB8 )
+        *(i + 2) = *(Gate + 4);
+    }
+    LODWORD(BaseAddress) = ZwUnmapViewOfSection(0xFFFFFFFFFFFFFFFFi64, BA);
+  }
+  return BaseAddress;
+}
+
+__int64 __fastcall Util::GetNextGate(PVOID BaseAddress, __int64 Idx)
+{
+  __int64 v2; 
+  char *NtHeader; 
+  __int64 v4; 
+  int v5; 
+  __int64 v6; 
+  __int64 v7; 
+  __int64 v8; 
+  unsigned int v9; 
+  unsigned int i; 
+  __int64 v11; 
+  __int64 v12; 
+  unsigned __int8 *v13; 
+  __int64 v14; 
+  int v15; 
+  int v16; 
+  int v18; 
+
+  v2 = 0i64;
+  if ( !BaseAddress || !Idx )
+    return 0i64;
+  if ( *BaseAddress == 'ZM' )
+  {
+    NtHeader = BaseAddress + *(BaseAddress + 0xF);
+    if ( *NtHeader == 'EP' )
+    {
+      v4 = 0x78i64;
+      if ( *(NtHeader + 2) == 0x8664 )
+        v4 = 0x88i64;
+      v5 = *&NtHeader[v4 + 4];
+      v18 = v5;
+      v6 = *&NtHeader[v4];
+      v7 = *(BaseAddress + v6 + 0x1C);
+      v8 = *(BaseAddress + v6 + 0x20);
+      v9 = *(BaseAddress + v6 + 0x18);
+      for ( i = 0; i < v8; ++i )
+      {
+        v11 = *(BaseAddress + 2 * i + *(BaseAddress + v6 + 36));
+        if ( i >= v9 || v11 >= v7 )
+          return 0i64;
+        v12 = *(BaseAddress + 4 * v11 + v7);
+        if ( v12 < v6 || v12 >= v6 + v5 )
+        {
+          v13 = BaseAddress + *(BaseAddress + 4 * i + v8);
+          v14 = Idx - v13;
+          do
+          {
+            v15 = v13[v14];
+            v16 = *v13 - v15;
+            if ( v16 )
+              break;
+            ++v13;
+          }
+          while ( v15 );
+          if ( !v16 )
+            return BaseAddress + v12;
+          v5 = v18;
+        }
+        if ( i > 0x7D0 )
+          return v2;
+        v9 = *(BaseAddress + v6 + 0x18);
+      }
+    }
+  }
+  return v2;
+}
+
+__int64 __fastcall Util::CheckSpecificSyscallGates(char Flag)
+{
+  int Status; 
+  int v2; 
+  __int64 (__fastcall *Original)(UNICODE_STRING *); 
+  unsigned int v4; 
+  signed __int64 *v5; 
+  const char *FuncName; 
+  unsigned int v8; 
+  const char *Func; 
+  unsigned int v10; 
+  __int64 v11; 
+  int v12; 
+
+  Status = 0xC0000229;
+  v8 = -1;
+  v10 = -1;
+  if ( Flag )
+  {
+    Func = 0i64;
+    FuncName = "NtTraceControl";
+    Util::GetSyscallAddress(&FuncName);
+    if ( v8 != -1 )
+    {
+      Status = sub_1400098C4(v8, Unk::NtTraceControl, &oNtTraceControl);
+      if ( Status >= 0 )
+      {
+        if ( *&HvGlobalState->gapEE0[8] )
+        {
+          *&HvGlobalState->gap1F0[256] = KeGetCurrentThread();
+          v2 = sub_14000DB30(5);
+          *&HvGlobalState->gap1F0[256] = 0i64;
+          if ( v2 != 0xC0000022 )
+          {
+            Original = oNtTraceControl;
+            Status = 0xC0000229;
+            v4 = v8;
+            v5 = 0i64;
+LABEL_13:
+            sub_1400098C4(v4, Original, v5);
+            return Status;
+          }
+        }
+        return 0;
+      }
+    }
+  }
+  else
+  {
+    v11 = 0i64;
+    FuncName = "NtLoadDriver";
+    v12 = -1;
+    Func = "NtUnloadDriver";
+    Util::GetSyscallAddress(&FuncName);
+    if ( v8 != -1 )
+      sub_1400098C4(v8, Unk::NtLoadDriver, &oNtLoadDriver);
+    v4 = v10;
+    if ( v10 != -1 && !*(gDriverObject + 0x68) )
+    {
+      v5 = &oNtUnloadDriver;
+      Original = Unk::NtUnloadDriver;
+      goto LABEL_13;
+    }
+  }
+  return Status;
+}
+
+__int64 __fastcall Util::CreateKey(
+        void *RootDir,
+        struct _UNICODE_STRING *ObjName,
+        ACCESS_MASK DesiredAccess,
+        ULONG CreateOptions,
+        void *SecDesc,
+        ULONG *Disp,
+        _QWORD *hKey)
+{
+  NTSTATUS Status; 
+  void *v8; 
+  ULONG v9; 
+  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
+  ULONG Disposition; 
+  void *KeyHandle; 
+
+  *(&ObjectAttributes.Attributes + 1) = 0;
+  Disposition = 0;
+  KeyHandle = 0i64;
+  ObjectAttributes.SecurityQualityOfService = 0i64;
+  ObjectAttributes.SecurityDescriptor = SecDesc;
+  ObjectAttributes.RootDirectory = RootDir;
+  ObjectAttributes.ObjectName = ObjName;
+  *&ObjectAttributes.Length = 48i64;
+  ObjectAttributes.Attributes = 576;
+  Status = ZwCreateKey(&KeyHandle, DesiredAccess, &ObjectAttributes, 0, 0i64, CreateOptions, &Disposition);
+  if ( Status >= 0 )
+  {
+    v9 = Disposition;
+    v8 = KeyHandle;
+  }
+  else
+  {
+    v8 = 0i64;
+    v9 = 0;
+  }
+  *hKey = v8;
+  if ( Disp )
+    *Disp = v9;
+  return Status;
+}
+
+__int64 __fastcall Util::GetSD(_WORD *StringSecDescriptor, int a2, __int64 DescriptorInfo)
+{
+  __int64 (__fastcall *SeConvertStringSecurityDescriptorToSecurityDescriptor)(_WORD *, __int64, __int64); 
+  __int64 result; 
+  void *Pool; 
+  int v9; 
+  struct _ACL *v10; 
+  NTSTATUS Status; 
+  PVOID PoolWithTag; 
+  int v13; 
+  PACL Dacl; 
+  struct _UNICODE_STRING FvkThisName; 
+  __int128 SecurityDescriptor[2]; 
+  __int64 v17; 
+  ULONG BufferLength; 
+
+  FvkThisName = 0i64;
+  RtlInitUnicodeString(&FvkThisName, L"SeConvertStringSecurityDescriptorToSecurityDescriptor");
+  SeConvertStringSecurityDescriptorToSecurityDescriptor = MmGetSystemRoutineAddress(&FvkThisName);
+  if ( !SeConvertStringSecurityDescriptorToSecurityDescriptor )
+  {
+    v13 = 0;
+    BufferLength = 0;
+    Dacl = 0i64;
+    *DescriptorInfo = 0i64;
+    Pool = 0i64;
+    memset(SecurityDescriptor, 0, sizeof(SecurityDescriptor));
+    v17 = 0i64;
+    v9 = sub_140047C78(StringSecDescriptor, a2, &v13, &Dacl);
+    v10 = Dacl;
+    Status = v9;
+    if ( v9 >= 0 )
+    {
+      RtlCreateSecurityDescriptor(SecurityDescriptor, 1u);
+      RtlSetDaclSecurityDescriptor(SecurityDescriptor, 1u, v10, 0);
+      WORD1(SecurityDescriptor[0]) |= v13;
+      RtlAbsoluteToSelfRelativeSD(SecurityDescriptor, 0i64, &BufferLength);
+      PoolWithTag = ExAllocatePoolWithTag(PagedPool, BufferLength, 'dSeS');
+      Pool = PoolWithTag;
+      if ( PoolWithTag )
+      {
+        Status = RtlAbsoluteToSelfRelativeSD(SecurityDescriptor, PoolWithTag, &BufferLength);
+        if ( Status >= 0 )
+        {
+          ExFreePoolWithTag(v10, 0);
+          *DescriptorInfo = Pool;
+          return Status;
+        }
+      }
+      else
+      {
+        Status = 0xC000009A;
+      }
+    }
+    if ( v10 )
+      ExFreePoolWithTag(v10, 0);
+    if ( Pool )
+      ExFreePoolWithTag(Pool, 0);
+    return Status;
+  }
+  result = SeConvertStringSecurityDescriptorToSecurityDescriptor(StringSecDescriptor, 1i64, DescriptorInfo);
+  if ( result >= 0 )
+  {
+    if ( a2 )
+      *(*DescriptorInfo + 2i64) |= 8u;
+  }
+  return result;
+}
+
+__int64 __fastcall Util::GetSDWrapper(unsigned __int16 *StringSecDescriptor, int a2, _QWORD *DescriptorInfo)
+{
+  unsigned __int64 v3; 
+  _WORD *SecDesc; 
+  _OWORD *PoolWithTag; 
+  _WORD *Pool; 
+  unsigned int SD; 
+
+  v3 = *StringSecDescriptor;
+  if ( StringSecDescriptor[1] == v3 + 2 )
+  {
+    SecDesc = *(StringSecDescriptor + 1);
+    if ( !SecDesc[v3 >> 1] )
+      return Util::GetSD(SecDesc, a2, DescriptorInfo);
+  }
+  PoolWithTag = ExAllocatePoolWithTag(PagedPool, v3 + 2, 'sTeS');
+  Pool = PoolWithTag;
+  if ( PoolWithTag )
+  {
+    sub_140029400(PoolWithTag, *(StringSecDescriptor + 1), *StringSecDescriptor);
+    Pool[*StringSecDescriptor >> 1] = 0;
+    SD = Util::GetSD(Pool, a2, DescriptorInfo);
+    ExFreePoolWithTag(Pool, 0);
+    return SD;
+  }
+  else
+  {
+    *DescriptorInfo = 0i64;
+    return 0xC000009Ai64;
+  }
+}
+
+NTSTATUS __fastcall Util::GetSecInfo(
+        PSECURITY_DESCRIPTOR SecurityDescriptor,
+        unsigned __int8 *RetOwner,
+        _DWORD *SecInfo)
+{
+  NTSTATUS result; 
+  int v7; 
+  PSID Owner; 
+  PACL Sacl; 
+  unsigned __int8 OwnerDefaulted; 
+  unsigned __int8 SaclPresent; 
+
+  Owner = 0i64;
+  Sacl = 0i64;
+  *RetOwner = 0;
+  *SecInfo = 0;
+  OwnerDefaulted = 0;
+  SaclPresent = 0;
+  result = RtlGetOwnerSecurityDescriptor(SecurityDescriptor, &Owner, &OwnerDefaulted);
+  if ( result >= 0 )
+  {
+    v7 = Owner != 0i64;
+    result = RtlGetGroupSecurityDescriptor(SecurityDescriptor, &Owner, &OwnerDefaulted);
+    if ( result >= 0 )
+    {
+      if ( Owner )
+        v7 |= 2u;
+      result = RtlGetSaclSecurityDescriptor(SecurityDescriptor, &SaclPresent, &Sacl, &OwnerDefaulted);
+      if ( result >= 0 )
+      {
+        if ( SaclPresent )
+          v7 |= 8u;
+        result = RtlGetDaclSecurityDescriptor(SecurityDescriptor, &SaclPresent, &Sacl, &OwnerDefaulted);
+        if ( result >= 0 )
+        {
+          if ( SaclPresent )
+            v7 |= 4u;
+          *RetOwner = OwnerDefaulted;
+          result = 0;
+          *SecInfo = v7;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+NTSTATUS __fastcall Util::OpenKey(
+        void *RootDir,
+        struct _UNICODE_STRING *ObjName,
+        ACCESS_MASK DesiredAccess,
+        void **hKey)
+{
+  NTSTATUS result; 
+  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
+  void *KeyHandle; 
+
+  *(&ObjectAttributes.Attributes + 1) = 0;
+  KeyHandle = 0i64;
+  *hKey = 0i64;
+  ObjectAttributes.RootDirectory = RootDir;
+  ObjectAttributes.ObjectName = ObjName;
+  *&ObjectAttributes.Length = 48i64;
+  ObjectAttributes.Attributes = 0x240;
+  *&ObjectAttributes.SecurityDescriptor = 0i64;
+  result = ZwOpenKey(&KeyHandle, DesiredAccess, &ObjectAttributes);
+  if ( result >= 0 )
+    *hKey = KeyHandle;
+  return result;
+}
+
+__int64 __fastcall Util::SetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, unsigned __int16 *Data)
+{
+  unsigned __int64 v4; // rdx
+  int Status; // ebx
+  char *v8; // rdx
+  struct _UNICODE_STRING UnicodeString; // [rsp+30h] [rbp-18h] BYREF
+
+  v4 = *Data;
+  UnicodeString = 0i64;
+  if ( Data[1] - v4 < 2 )
+  {
+    Status = Util::AllocateBuf(&UnicodeString, v4);
+    if ( Status >= 0 )
+    {
+      v8 = *(Data + 1);
+      UnicodeString.Length = *Data;
+      sub_140029400(UnicodeString.Buffer, v8, UnicodeString.Length);
+      UnicodeString.Buffer[UnicodeString.Length >> 1] = 0;
+      Status = ZwSetValueKey(KeyHandle, ValueName, 0, 1u, UnicodeString.Buffer, UnicodeString.Length + 2);
+      RtlFreeUnicodeString(&UnicodeString);
+    }
+  }
+  else
+  {
+    *(*(Data + 1) + 2 * (v4 >> 1)) = 0;
+    return ZwSetValueKey(KeyHandle, ValueName, 0, 1u, *(Data + 1), *Data + 2);
+  }
+  return Status;
+}
