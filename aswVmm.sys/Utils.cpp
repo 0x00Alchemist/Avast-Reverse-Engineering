@@ -1056,7 +1056,7 @@ struct_HvGlobalState *__fastcall Util::FreeSpecificPool(char FreePool)
   return result;
 }
 
-__int64 __fastcall Util::CheckKeyValueName(_UNICODE_STRING *Str, WCHAR *Name)
+__int64 __fastcall Util::WcharToUnicode(_UNICODE_STRING *Str, WCHAR *Name)
 {
   USHORT MaxLen; 
   unsigned __int64 i; 
@@ -1293,48 +1293,6 @@ LABEL_13:
   return Status;
 }
 
-__int64 __fastcall Util::CreateKey(
-        void *RootDir,
-        struct _UNICODE_STRING *ObjName,
-        ACCESS_MASK DesiredAccess,
-        ULONG CreateOptions,
-        void *SecDesc,
-        ULONG *Disp,
-        _QWORD *hKey)
-{
-  NTSTATUS Status; 
-  void *v8; 
-  ULONG v9; 
-  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
-  ULONG Disposition; 
-  void *KeyHandle; 
-
-  *(&ObjectAttributes.Attributes + 1) = 0;
-  Disposition = 0;
-  KeyHandle = 0i64;
-  ObjectAttributes.SecurityQualityOfService = 0i64;
-  ObjectAttributes.SecurityDescriptor = SecDesc;
-  ObjectAttributes.RootDirectory = RootDir;
-  ObjectAttributes.ObjectName = ObjName;
-  *&ObjectAttributes.Length = 48i64;
-  ObjectAttributes.Attributes = 576;
-  Status = ZwCreateKey(&KeyHandle, DesiredAccess, &ObjectAttributes, 0, 0i64, CreateOptions, &Disposition);
-  if ( Status >= 0 )
-  {
-    v9 = Disposition;
-    v8 = KeyHandle;
-  }
-  else
-  {
-    v8 = 0i64;
-    v9 = 0;
-  }
-  *hKey = v8;
-  if ( Disp )
-    *Disp = v9;
-  return Status;
-}
-
 __int64 __fastcall Util::GetSD(_WORD *StringSecDescriptor, int a2, __int64 DescriptorInfo)
 {
   __int64 (__fastcall *SeConvertStringSecurityDescriptorToSecurityDescriptor)(_WORD *, __int64, __int64); 
@@ -1483,56 +1441,98 @@ NTSTATUS __fastcall Util::GetSecInfo(
   return result;
 }
 
-NTSTATUS __fastcall Util::OpenKey(
-        void *RootDir,
-        struct _UNICODE_STRING *ObjName,
-        ACCESS_MASK DesiredAccess,
-        void **hKey)
+__int64 __fastcall Util::MapPages(_QWORD *Buf, struct _MDL **Mdl, unsigned int Size)
 {
-  NTSTATUS result; 
-  struct _OBJECT_ATTRIBUTES ObjectAttributes; 
-  void *KeyHandle; 
+  unsigned int Status; 
+  struct _MDL *CurrentMdl; 
+  void *ret; 
+  __int64 v8; 
+  __int64 v9; 
+  int v10; 
+  PVOID StartOfMappedPages; 
+  void *Ret; 
+  int v13; 
+  __int64 v14; 
+  int v15; 
 
-  *(&ObjectAttributes.Attributes + 1) = 0;
-  KeyHandle = 0i64;
-  *hKey = 0i64;
-  ObjectAttributes.RootDirectory = RootDir;
-  ObjectAttributes.ObjectName = ObjName;
-  *&ObjectAttributes.Length = 48i64;
-  ObjectAttributes.Attributes = 0x240;
-  *&ObjectAttributes.SecurityDescriptor = 0i64;
-  result = ZwOpenKey(&KeyHandle, DesiredAccess, &ObjectAttributes);
-  if ( result >= 0 )
-    *hKey = KeyHandle;
-  return result;
+  Status = 0;
+  CurrentMdl = 0i64;
+  if ( !Buf || !Mdl )
+  {
+    Status = 0xC000000D;
+    _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+    Ret = Util::RetAddr();
+    *&HvGlobalState->gapF30[16 * v13 + 8] = Ret;
+    *&HvGlobalState->gapF30[16 * v14 + 16] = v15;
+    goto LABEL_8;
+  }
+  CurrentMdl = Util::AllocateAndVerifyMdl((Size >> 12) + ((Size & 0xFFF) != 0));
+  if ( !CurrentMdl
+    || (StartOfMappedPages = MmMapLockedPagesSpecifyCache(CurrentMdl, 0, MmCached, 0i64, 0, dword_140045668 | 0x20u)) == 0i64 )
+  {
+    Status = 0xC0000017;
+    _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+    ret = Util::RetAddr();
+    *&HvGlobalState->gapF30[16 * v8 + 8] = ret;
+    *&HvGlobalState->gapF30[16 * v9 + 16] = v10;
+LABEL_8:
+    Util::FreePages(0i64, CurrentMdl);
+    return Status;
+  }
+  *Mdl = CurrentMdl;
+  *Buf = StartOfMappedPages;
+  return Status;
 }
 
-__int64 __fastcall Util::SetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, unsigned __int16 *Data)
+PMDL __fastcall Util::AllocateAndVerifyMdl(int Size)
 {
-  unsigned __int64 v4; // rdx
-  int Status; // ebx
-  char *v8; // rdx
-  struct _UNICODE_STRING UnicodeString; // [rsp+30h] [rbp-18h] BYREF
+  SIZE_T Total; 
+  PMDL PagesForMdl; 
+  PMDL Mdl; 
 
-  v4 = *Data;
-  UnicodeString = 0i64;
-  if ( Data[1] - v4 < 2 )
+  Total = (Size << 12);
+  PagesForMdl = MmAllocatePagesForMdl(0i64, -1i64, 0i64, Total);
+  Mdl = PagesForMdl;
+  if ( PagesForMdl && PagesForMdl->ByteCount != Total )
   {
-    Status = Util::AllocateBuf(&UnicodeString, v4);
-    if ( Status >= 0 )
-    {
-      v8 = *(Data + 1);
-      UnicodeString.Length = *Data;
-      sub_140029400(UnicodeString.Buffer, v8, UnicodeString.Length);
-      UnicodeString.Buffer[UnicodeString.Length >> 1] = 0;
-      Status = ZwSetValueKey(KeyHandle, ValueName, 0, 1u, UnicodeString.Buffer, UnicodeString.Length + 2);
-      RtlFreeUnicodeString(&UnicodeString);
-    }
+    MmFreePagesFromMdl(PagesForMdl);
+    ExFreePoolWithTag(Mdl, 0);
+    return 0i64;
   }
-  else
+  return Mdl;
+}
+
+__int64 __fastcall Util::AllocateCachedMem(PVOID *Buf, PHYSICAL_ADDRESS *PhysAddr, SIZE_T Size)
+{
+  unsigned int Status; 
+  PVOID ContiguousMemorySpecifyCache; 
+  unsigned int v6; 
+  void *Ret; 
+  int v8; 
+  __int64 v9; 
+  int v10; 
+
+  Status = 0;
+  if ( !Buf )
   {
-    *(*(Data + 1) + 2 * (v4 >> 1)) = 0;
-    return ZwSetValueKey(KeyHandle, ValueName, 0, 1u, *(Data + 1), *Data + 2);
+    v6 = 0xC000000D;
+    goto LABEL_7;
   }
+  ContiguousMemorySpecifyCache = MmAllocateContiguousMemorySpecifyCache(Size, 0i64, -1i64, 0i64, MmCached);
+  *Buf = ContiguousMemorySpecifyCache;
+  if ( !ContiguousMemorySpecifyCache )
+  {
+    v6 = 0xC0000017;
+LABEL_7:
+    Status = v6;
+    _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+    Ret = Util::RetAddr();
+    *&HvGlobalState->gapF30[16 * v8 + 8] = Ret;
+    *&HvGlobalState->gapF30[16 * v9 + 16] = v10;
+    return Status;
+  }
+  sub_1400296C0(ContiguousMemorySpecifyCache, 0, Size);
+  if ( PhysAddr )
+    *PhysAddr = MmGetPhysicalAddress(*Buf);
   return Status;
 }

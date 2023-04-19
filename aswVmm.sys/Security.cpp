@@ -116,3 +116,61 @@ bool __fastcall Security::CheckModuleIntegrity(unsigned __int64 buffer)
     Security::HvIntegrityCheck(driverStart, driverSize);
   return checkResult;
 }
+
+ACCESS_MASK __fastcall Security::SetAccessMaskBySecurityInfo(
+        SECURITY_INFORMATION SecurityInfo,
+        ACCESS_MASK *DesiredAccess)
+{
+  ACCESS_MASK result; 
+
+  result = 0;
+  *DesiredAccess = 0;
+  if ( (SecurityInfo & 3) != 0 )
+  {
+    result = 0x80000;
+    *DesiredAccess = 0x80000;
+  }
+  if ( (SecurityInfo & 4) != 0 )
+  {
+    result |= 0x40000u;
+    *DesiredAccess = result;
+  }
+  if ( (SecurityInfo & 8) != 0 )
+  {
+    result |= 0x1000000u;
+    *DesiredAccess = result;
+  }
+  return result;
+}
+
+NTSTATUS __fastcall Security::SetSecurityObject(PVOID Object, PSECURITY_DESCRIPTOR *SecDesc)
+{
+  int v4; 
+  NTSTATUS result; 
+  NTSTATUS Status; 
+  HANDLE Handle; 
+  unsigned __int8 Owner; 
+  SECURITY_INFORMATION SecurityInformation; 
+  ACCESS_MASK DesiredAccess; 
+
+  SecurityInformation = 0;
+  DesiredAccess = 0;
+  Handle = 0i64;
+  v4 = *SecDesc;
+  Owner = 0;
+  if ( (v4 & 2) == 0 )
+    return 0;
+  result = Util::GetSecInfo(SecDesc[1], &Owner, &SecurityInformation);
+  if ( result >= 0 )
+  {
+    Security::SetAccessMaskBySecurityInfo(SecurityInformation, &DesiredAccess);
+    result = ObOpenObjectByPointer(Object, 0x200u, 0i64, DesiredAccess, IoDeviceObjectType, 0, &Handle);
+    if ( result >= 0 )
+    {
+      Status = ZwSetSecurityObject(Handle, SecurityInformation, SecDesc[1]);
+      ZwClose(Handle);
+      return Status;
+    }
+  }
+  return result;
+}

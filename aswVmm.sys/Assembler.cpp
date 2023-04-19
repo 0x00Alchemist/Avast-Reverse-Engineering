@@ -109,3 +109,39 @@ __int16 Hypervisor::AsmGetLdtSegment()
         retn
     }
 }
+
+void Hypervisor::AsmInvd()
+{
+  __asm { invd }
+}
+
+void __fastcall Hypervisor::AsmLoadGDT(void *Src)
+{
+  __lgdt(Src);
+}
+
+void __fastcall Hypervisor::AsmLoadIDT(void *Src)
+{
+  __lidt(Src);
+}
+
+__int16 Hypervisor::AsmStr()
+{
+  __int16 result; 
+
+  __asm { str     ax }
+  return result;
+}
+
+__int64 __fastcall Hypervisor::AsmXgetbv(__int64 a1, __int64 a2)
+{
+  __int64 v2; 
+
+  __asm { xgetbv }
+  return (a2 << 32) | v2;
+}
+
+void Hypervisor::AsmLtr()
+{
+  __asm { ltr     cx }
+}

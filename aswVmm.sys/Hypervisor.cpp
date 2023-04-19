@@ -736,3 +736,63 @@ LABEL_12:
     goto LABEL_12;
   }
 }
+
+__int64 __fastcall Hypervisor::CheckVTxSupport(bool *VTxSupported)
+{
+  unsigned __int64 VTx; 
+  bool IsSupported; 
+
+  VTx = __readmsr(0x3Au);                       // IA32_FEATURE_CONTROL
+  IsSupported = (VTx & 1) != 0 && (VTx & 4) == 0;
+  *VTxSupported = IsSupported;                  // If returns 3, 5, 7 - VTx supported
+  return 0i64;
+}
+
+__int64 __fastcall Hypervisor::CheckAMDSVMSupport(bool *SVMSupported)
+{
+  unsigned __int64 SVM; 
+  bool IsSupported; 
+
+  SVM = __readmsr(0xC0010114);                  // MSR_VM_CR
+  IsSupported = (SVM & 8) != 0 && (SVM & 0x10) != 0;
+  *SVMSupported = IsSupported;
+  return 0i64;
+}
+
+__int64 __fastcall Hypervisor::CheckVirtualizationFeatures(bool *IsSupported)
+{
+  unsigned int v1; 
+  void *ret; 
+  __int64 v3; 
+  int v4; 
+  __int64 v5; 
+  int StandardCpuInfo; 
+  int v7; 
+  void *Ret; 
+  int v10; 
+
+  v1 = 0;
+  if ( !HvGlobalState->byte150 || !IsSupported )
+  {
+    _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+    ret = Util::RetAddr();
+    *&HvGlobalState->gapF30[16 * v5 + 8] = ret;
+LABEL_11:
+    *&HvGlobalState->gapF30[16 * v3 + 16] = v4;
+    return v1;
+  }
+  StandardCpuInfo = HvGlobalState->StandardCpuInfo;
+  if ( !StandardCpuInfo )
+  {
+    _InterlockedExchangeAdd(HvGlobalState->gapF30, 1u);
+    Ret = Util::RetAddr();
+    *&HvGlobalState->gapF30[16 * v10 + 8] = Ret;
+    goto LABEL_11;
+  }
+  v7 = StandardCpuInfo - 1;
+  if ( !v7 )
+    return Hypervisor::CheckVTxSupport(IsSupported);
+  if ( v7 == 1 )
+    return Hypervisor::CheckAMDSVMSupport(IsSupported);
+  return v1;
+}
